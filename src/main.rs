@@ -1,11 +1,11 @@
-use std::{
-    fs::{self, File},
-    path::{Path, PathBuf},
-};
+mod dat;
+
+use std::path::PathBuf;
 
 use anyhow::bail;
 use bevy::{prelude::*, render::render_resource::PrimitiveTopology};
 
+use dat::{GameData, Ide};
 use rw_rs::{bsf::*, img::Img};
 
 #[derive(Component)]
@@ -17,11 +17,6 @@ struct MeshIndex(usize);
 #[derive(Resource)]
 struct Meshes(Vec<Handle<Mesh>>);
 
-#[derive(Resource)]
-struct GameData {
-    data_dir: PathBuf,
-}
-
 fn main() -> anyhow::Result<()> {
     let data_dir: PathBuf = PathBuf::from(std::env::var("GTA_DIR").unwrap_or(".".into()));
     if !data_dir.join("data/gta3.dat").exists() {
@@ -29,6 +24,9 @@ fn main() -> anyhow::Result<()> {
             "GTA files not found, set working directory or set the GTA_DIR environment variable."
         );
     }
+
+    let img_path = data_dir.join("models/gta3.img");
+    let img = Img::new(&img_path).expect("gta3.img not found");
 
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -40,7 +38,11 @@ fn main() -> anyhow::Result<()> {
         }))
         .add_systems(Startup, setup)
         .add_systems(Update, (input_handler, update_mesh))
-        .insert_resource(GameData { data_dir })
+        .insert_resource(GameData {
+            data_dir,
+            img,
+            ide: Ide::default(),
+        })
         .run();
 
     Ok(())
@@ -85,15 +87,17 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
 
 fn setup(
     mut commands: Commands,
-    file_data: Res<GameData>,
-    asset_server: ResMut<AssetServer>,
+    mut file_data: ResMut<GameData>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let img_path = file_data.data_dir.join("models/gta3.img");
-    let mut img = Img::new(&img_path).expect("gta3.img not found");
-    let file = img.get_file("player.dff").expect("DFF not found in img");
+    let file = file_data
+        .img
+        .get_file("player.dff")
+        .expect("DFF not found in img");
     let (_, bsf) = parse_bsf_chunk(&file).unwrap();
+
+    file_data.load_dat().expect("Error loading gta3.dat");
 
     commands.insert_resource(MeshIndex(0));
 
@@ -109,7 +113,10 @@ fn setup(
     commands.spawn((
         PbrBundle {
             mesh: cube_mesh_handles[0].clone(),
-            material: materials.add(StandardMaterial { ..default() }),
+            material: materials.add(StandardMaterial {
+                base_color: Color::WHITE,
+                ..default()
+            }),
             ..default()
         },
         TheMesh,
@@ -155,8 +162,6 @@ fn setup(
 
 fn input_handler(
     keyboard_input: Res<Input<KeyCode>>,
-    mesh_query: Query<&Handle<Mesh>, With<TheMesh>>,
-    //mut meshes: ResMut<Assets<Mesh>>,
     mut query: Query<&mut Transform, With<TheMesh>>,
     mut index: ResMut<MeshIndex>,
     meshes: Res<Meshes>,
@@ -196,10 +201,9 @@ fn input_handler(
     }
     if keyboard_input.just_pressed(KeyCode::Minus)
         | keyboard_input.just_pressed(KeyCode::NumpadSubtract)
+        && index.0 > 0
     {
-        if index.0 > 0 {
-            index.0 -= 1;
-        }
+        index.0 -= 1;
     }
 }
 

@@ -1,47 +1,40 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'gtc'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--bin=gtc",
-                    "--package=gtc"
-                ],
-                "filter": {
-                    "name": "gtc",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "envFile": "${workspaceFolder}/.envrc"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in executable 'gtc'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=gtc",
-                    "--package=gtc"
-                ],
-                "filter": {
-                    "name": "gtc",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "envFile": "${workspaceFolder}/.envrc"
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'gtc'",
+      "cargo": {
+        "args": ["build", "--bin=gtc", "--package=gtc"],
+        "filter": {
+          "name": "gtc",
+          "kind": "bin"
         }
-    ]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.envrc",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'gtc'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=gtc", "--package=gtc"],
+        "filter": {
+          "name": "gtc",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.envrc",
+      "console": "integratedTerminal"
+    }
+  ]
 }
