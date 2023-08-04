@@ -153,22 +153,22 @@ impl GameData {
                         material: materials.add(StandardMaterial { ..default() }),
                         transform: Transform {
                             translation: [
-                                words[2].parse().unwrap(),
+                                -(words[2].parse::<f32>().unwrap()),
                                 words[4].parse().unwrap(),
-                                words[3].parse().unwrap(),
+                                words[3].parse::<f32>().unwrap(),
                             ]
                             .into(),
                             scale: [
                                 words[5].parse().unwrap(),
-                                words[7].parse().unwrap(),
                                 words[6].parse().unwrap(),
+                                words[7].parse().unwrap(),
                             ]
                             .into(),
                             rotation: Quat::from_array([
-                                words[8].parse().unwrap(),
-                                words[9].parse().unwrap(),
-                                words[10].parse().unwrap(),
-                                words[11].parse().unwrap(),
+                                words[8].parse::<f32>().unwrap(),
+                                -words[10].parse::<f32>().unwrap(),
+                                -words[9].parse::<f32>().unwrap(),
+                                words[11].parse::<f32>().unwrap(),
                             ])
                             .normalize(),
                         },

@@ -97,7 +97,7 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
             mesh.set_indices(Some(bevy::render::mesh::Indices::U16(
                 geo.triangles
                     .iter()
-                    .flat_map(|t| to_xzy(t.as_arr()))
+                    .flat_map(|t| t.as_arr())
                     .collect::<Vec<_>>(),
             )));
 
@@ -121,38 +121,10 @@ fn setup(
     file_data
         .load_dat(&mut commands, &mut meshes, &mut materials)
         .expect("Error loading gta3.dat");
-    /*let file = file_data
-        .img
-        .get_file("player.dff")
-        .expect("DFF not found in img");
-    let (_, bsf) = parse_bsf_chunk(&file).unwrap();
-
-    commands.insert_resource(MeshIndex(0));
-
-    // Create and save a handle to the mesh.
-    let cube_mesh_handles: Vec<Handle<Mesh>> = load_meshes(&bsf)
-        .into_iter()
-        .map(|m| meshes.add(m))
-        .collect();
-
-    commands.insert_resource(Meshes(cube_mesh_handles.clone()));
-
-    // Render the mesh with the custom texture using a PbrBundle, add the marker.
-    commands.spawn((
-        PbrBundle {
-            mesh: cube_mesh_handles[0].clone(),
-            material: materials.add(StandardMaterial {
-                base_color: Color::WHITE,
-                ..default()
-            }),
-            ..default()
-        },
-        TheMesh,
-    ));*/
 
     // Transform for the camera and lighting, looking at (0,0,0) (the position of the mesh).
     let camera_and_light_transform =
-        Transform::from_xyz(0.0, 500.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
+        Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
     // Camera in 3D space.
     commands.spawn((
@@ -212,54 +184,9 @@ fn input_handler(
         //let mesh = meshes.get_mut(mesh_handle).unwrap();
         //toggle_texture(mesh);
     }
-    if keyboard_input.pressed(KeyCode::X) {
-        for mut transform in &mut query {
-            transform.rotate_x(time.delta_seconds() / 1.2);
-        }
-    }
-    if keyboard_input.pressed(KeyCode::Y) {
-        for mut transform in &mut query {
-            transform.rotate_y(time.delta_seconds() / 1.2);
-        }
-    }
-    if keyboard_input.pressed(KeyCode::Z) {
-        for mut transform in &mut query {
-            transform.rotate_z(time.delta_seconds() / 1.2);
-        }
-    }
-    if keyboard_input.pressed(KeyCode::R) {
-        for mut transform in &mut query {
-            transform.look_to(Vec3::NEG_Z, Vec3::Y);
-        }
-    }
-    if keyboard_input.just_pressed(KeyCode::Plus) | keyboard_input.just_pressed(KeyCode::NumpadAdd)
-    {
-        //let num_meshes = meshes.0.len();
-        //if index.0 < num_meshes - 1 {
-        //    index.0 += 1;
-        //}
-    }
-    if keyboard_input.just_pressed(KeyCode::Minus)
-        | keyboard_input.just_pressed(KeyCode::NumpadSubtract)
-    //&& index.0 > 0
-    {
-        //index.0 -= 1;
-    }
-}
-
-fn update_mesh(
-    mut commands: Commands,
-    mesh_query: Query<Entity, With<TheMesh>>,
-    index: Res<MeshIndex>,
-    meshes: Res<Meshes>,
-) {
-    if index.is_changed() {
-        let new_mesh = meshes.0.get(index.0).unwrap().clone();
-        commands.entity(mesh_query.single()).insert(new_mesh);
-    }
 }
 
 // For converting GTA coords system to Bevy
-fn to_xzy<T: Copy>(coords: [T; 3]) -> [T; 3] {
-    [coords[0], coords[2], coords[1]]
+fn to_xzy<T: Copy + std::ops::Neg<Output = T>>(coords: [T; 3]) -> [T; 3] {
+    [-coords[0], coords[2], coords[1]]
 }
