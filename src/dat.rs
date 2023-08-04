@@ -132,7 +132,7 @@ impl GameData {
 
                 // IPL
                 "inst" => {
-                    warn!("loading {}", words[1]);
+                    debug!("loading {}", words[1]);
                     let file = self
                         .img
                         .get_file(&format!("{}.dff", words[1]))
@@ -142,16 +142,15 @@ impl GameData {
                         .into_iter()
                         .map(|m| meshes.add(m))
                         .collect::<Vec<_>>();
+
                     if meshes_vec.is_empty() {
                         warn!("{} contained zero meshes", words[1]);
                         continue;
                     }
+
                     commands.spawn((PbrBundle {
                         mesh: meshes_vec[0].clone(),
-                        material: materials.add(StandardMaterial {
-                            base_color: Color::WHITE,
-                            ..default()
-                        }),
+                        material: materials.add(StandardMaterial { ..default() }),
                         transform: Transform {
                             translation: [
                                 words[2].parse().unwrap(),

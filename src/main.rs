@@ -1,7 +1,7 @@
 mod dat;
 mod flycam;
 
-use std::path::PathBuf;
+use std::{f32::consts::PI, path::PathBuf};
 
 use anyhow::bail;
 use bevy::{prelude::*, render::render_resource::PrimitiveTopology};
@@ -68,12 +68,6 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
                 PrimitiveTopology::TriangleList
             };
             let mut mesh = Mesh::new(topo);
-            mesh.set_indices(Some(bevy::render::mesh::Indices::U16(
-                geo.triangles
-                    .iter()
-                    .flat_map(|t| to_xzy(t.as_arr()))
-                    .collect::<Vec<_>>(),
-            )));
             mesh.insert_attribute(
                 Mesh::ATTRIBUTE_POSITION,
                 geo.vertices
@@ -98,6 +92,18 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
                         .map(|t| t.as_arr())
                         .collect::<Vec<_>>(),
                 );
+            }
+
+            mesh.set_indices(Some(bevy::render::mesh::Indices::U16(
+                geo.triangles
+                    .iter()
+                    .flat_map(|t| to_xzy(t.as_arr()))
+                    .collect::<Vec<_>>(),
+            )));
+
+            if geo.normals.is_empty() {
+                mesh.duplicate_vertices();
+                mesh.compute_flat_normals();
             }
 
             mesh_vec.push(mesh);
@@ -146,7 +152,7 @@ fn setup(
 
     // Transform for the camera and lighting, looking at (0,0,0) (the position of the mesh).
     let camera_and_light_transform =
-        Transform::from_xyz(0.0, 1000.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
+        Transform::from_xyz(0.0, 500.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
     // Camera in 3D space.
     commands.spawn((
@@ -157,14 +163,23 @@ fn setup(
         FlyCam,
     ));
 
-    // Light up the scene.
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            intensity: 1000.0,
-            range: 100.0,
+    // ambient light
+    commands.insert_resource(AmbientLight {
+        color: Color::ORANGE_RED,
+        brightness: 0.02,
+    });
+
+    // directional 'sun' light
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            shadows_enabled: true,
             ..default()
         },
-        transform: camera_and_light_transform,
+        transform: Transform {
+            translation: Vec3::new(0.0, 1000.0, 0.0),
+            rotation: Quat::from_rotation_x(-PI / 4.),
+            ..default()
+        },
         ..default()
     });
 

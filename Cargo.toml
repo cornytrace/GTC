@@ -30,6 +30,9 @@ features = [
     "default_font",
     "multi-threaded",
     "bmp",
+    "tonemapping_luts",
+    "ktx2",
+    "zstd",
 ]
 
 # Enable max optimizations for dependencies, but not for our code:
