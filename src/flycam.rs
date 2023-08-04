@@ -14,13 +14,15 @@ struct InputState {
 pub struct MovementSettings {
     pub sensitivity: f32,
     pub speed: f32,
+    pub sprint_mult: f32,
 }
 
 impl Default for MovementSettings {
     fn default() -> Self {
         Self {
             sensitivity: 0.00012,
-            speed: 12.,
+            speed: 20.,
+            sprint_mult: 4.,
         }
     }
 }
@@ -34,6 +36,7 @@ pub struct KeyBindings {
     pub move_right: KeyCode,
     pub move_ascend: KeyCode,
     pub move_descend: KeyCode,
+    pub move_sprint: KeyCode,
     pub toggle_grab_cursor: KeyCode,
 }
 
@@ -45,7 +48,8 @@ impl Default for KeyBindings {
             move_left: KeyCode::A,
             move_right: KeyCode::D,
             move_ascend: KeyCode::Space,
-            move_descend: KeyCode::ShiftLeft,
+            move_descend: KeyCode::C,
+            move_sprint: KeyCode::ShiftLeft,
             toggle_grab_cursor: KeyCode::Escape,
         }
     }
@@ -103,7 +107,7 @@ fn player_move(
         for (_camera, mut transform) in query.iter_mut() {
             let mut velocity = Vec3::ZERO;
             let local_z = transform.local_z();
-            let forward = -Vec3::new(local_z.x, 0., local_z.z);
+            let forward = -Vec3::new(local_z.x, local_z.y, local_z.z);
             let right = Vec3::new(local_z.z, 0., -local_z.x);
 
             for key in keys.get_pressed() {
@@ -127,9 +131,15 @@ fn player_move(
                     }
                 }
 
+                let mult = if keys.pressed(key_bindings.move_sprint) {
+                    settings.sprint_mult
+                } else {
+                    1.
+                };
+
                 velocity = velocity.normalize_or_zero();
 
-                transform.translation += velocity * time.delta_seconds() * settings.speed
+                transform.translation += velocity * time.delta_seconds() * settings.speed * mult;
             }
         }
     } else {
