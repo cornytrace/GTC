@@ -461,6 +461,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_flycam"
+version = "0.11.0"
+source = "git+https://github.com/sburris0/bevy_flycam.git?branch=bevy_0.11#4ed8bcebac4210f30c7d757c3fd2fba7a1d275e2"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_gilrs"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1276,7 +1284,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading 0.8.0",
+ "libloading 0.7.4",
 ]
 
 [[package]]
@@ -1622,6 +1630,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bevy",
+ "bevy_flycam",
  "rw-rs",
 ]
 

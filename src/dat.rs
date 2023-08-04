@@ -2,7 +2,9 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use anyhow::anyhow;
 use bevy::prelude::*;
-use rw_rs::img::Img;
+use rw_rs::{bsf::parse_bsf_chunk, img::Img};
+
+use crate::load_meshes;
 
 #[derive(Resource)]
 pub struct GameData {
@@ -12,7 +14,12 @@ pub struct GameData {
 }
 
 impl GameData {
-    pub fn load_dat(&mut self) -> anyhow::Result<()> {
+    pub fn load_dat(
+        &mut self,
+        mut commands: &mut Commands,
+        mut meshes: &mut ResMut<Assets<Mesh>>,
+        mut materials: &mut ResMut<Assets<StandardMaterial>>,
+    ) -> anyhow::Result<()> {
         let dat = std::fs::read_to_string(self.data_dir.join("data/gta3.dat"))?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
         for line in lines {
@@ -26,18 +33,24 @@ impl GameData {
             }
 
             match words[0].to_lowercase().as_str() {
-                "ide" => self.load_ide(words[1])?,
+                "ide" | "mapzone" | "ipl" => {
+                    self.load_ide(words[1], commands, meshes, materials)?
+                }
                 "splash" => {}
                 "colfile" => {}
-                "mapzone" => {}
-                "ipl" => {}
                 _ => todo!(),
             }
         }
         Ok(())
     }
 
-    pub fn load_ide(&mut self, path: &str) -> anyhow::Result<()> {
+    pub fn load_ide(
+        &mut self,
+        path: &str,
+        mut commands: &mut Commands,
+        mut meshes: &mut ResMut<Assets<Mesh>>,
+        mut materials: &mut ResMut<Assets<StandardMaterial>>,
+    ) -> anyhow::Result<()> {
         let path = self.get_path(path).ok_or(anyhow!("{} not found!", path))?;
         let dat = std::fs::read_to_string(&path)?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
@@ -64,6 +77,7 @@ impl GameData {
                 continue;
             }
             match section.to_lowercase().as_str() {
+                // IDE
                 "objs" => {
                     let mut obj = IdeObj {
                         id: words[0].parse().unwrap(),
@@ -112,6 +126,65 @@ impl GameData {
                 "anim" => {}
 
                 "txdp" => {}
+
+                // MAPZONE
+                "zone" => {}
+
+                // IPL
+                "inst" => {
+                    warn!("loading {}", words[1]);
+                    let file = self
+                        .img
+                        .get_file(&format!("{}.dff", words[1]))
+                        .unwrap_or_else(|| panic!("DFF {} not found in img", words[1]));
+                    let (_, bsf) = parse_bsf_chunk(&file).unwrap();
+                    let meshes_vec = load_meshes(&bsf)
+                        .into_iter()
+                        .map(|m| meshes.add(m))
+                        .collect::<Vec<_>>();
+                    if meshes_vec.is_empty() {
+                        warn!("{} contained zero meshes", words[1]);
+                        continue;
+                    }
+                    commands.spawn((PbrBundle {
+                        mesh: meshes_vec[0].clone(),
+                        material: materials.add(StandardMaterial {
+                            base_color: Color::WHITE,
+                            ..default()
+                        }),
+                        transform: Transform {
+                            translation: [
+                                words[2].parse().unwrap(),
+                                words[3].parse().unwrap(),
+                                words[4].parse().unwrap(),
+                            ]
+                            .into(),
+                            scale: [
+                                words[5].parse().unwrap(),
+                                words[6].parse().unwrap(),
+                                words[7].parse().unwrap(),
+                            ]
+                            .into(),
+                            rotation: Quat::from_array([
+                                words[8].parse().unwrap(),
+                                words[9].parse().unwrap(),
+                                words[10].parse().unwrap(),
+                                words[11].parse().unwrap(),
+                            ]),
+                        },
+                        ..default()
+                    },));
+                }
+
+                "zone" => {}
+
+                "cull" => {}
+
+                "pick" => {}
+
+                "path" => {}
+
+                "occl" => {}
 
                 "" => {
                     error!("Line {} found outside of a section", linecount)

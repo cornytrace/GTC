@@ -37,7 +37,7 @@ fn main() -> anyhow::Result<()> {
             ..default()
         }))
         .add_systems(Startup, setup)
-        .add_systems(Update, (input_handler, update_mesh))
+        .add_systems(Update, (input_handler /*update_mesh*/,))
         .insert_resource(GameData {
             data_dir,
             img,
@@ -75,10 +75,22 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
                 Mesh::ATTRIBUTE_POSITION,
                 geo.vertices.iter().map(|t| t.as_arr()).collect::<Vec<_>>(),
             );
-            mesh.insert_attribute(
-                Mesh::ATTRIBUTE_NORMAL,
-                geo.normals.iter().map(|t| t.as_arr()).collect::<Vec<_>>(),
-            );
+            if !geo.normals.is_empty() {
+                mesh.insert_attribute(
+                    Mesh::ATTRIBUTE_NORMAL,
+                    geo.normals.iter().map(|t| t.as_arr()).collect::<Vec<_>>(),
+                );
+            }
+            if geo.tex_coords.len() == 1 {
+                mesh.insert_attribute(
+                    Mesh::ATTRIBUTE_UV_0,
+                    geo.tex_coords[0]
+                        .iter()
+                        .map(|t| t.as_arr())
+                        .collect::<Vec<_>>(),
+                );
+            }
+
             mesh_vec.push(mesh);
         }
     }
@@ -91,13 +103,14 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let file = file_data
+    file_data
+        .load_dat(&mut commands, &mut meshes, &mut materials)
+        .expect("Error loading gta3.dat");
+    /*let file = file_data
         .img
         .get_file("player.dff")
         .expect("DFF not found in img");
     let (_, bsf) = parse_bsf_chunk(&file).unwrap();
-
-    file_data.load_dat().expect("Error loading gta3.dat");
 
     commands.insert_resource(MeshIndex(0));
 
@@ -120,7 +133,7 @@ fn setup(
             ..default()
         },
         TheMesh,
-    ));
+    ));*/
 
     // Transform for the camera and lighting, looking at (0,0,0) (the position of the mesh).
     let camera_and_light_transform =
@@ -163,8 +176,8 @@ fn setup(
 fn input_handler(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<&mut Transform, With<TheMesh>>,
-    mut index: ResMut<MeshIndex>,
-    meshes: Res<Meshes>,
+    //mut index: ResMut<MeshIndex>,
+    //meshes: Res<Meshes>,
     time: Res<Time>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Space) {
@@ -194,16 +207,16 @@ fn input_handler(
     }
     if keyboard_input.just_pressed(KeyCode::Plus) | keyboard_input.just_pressed(KeyCode::NumpadAdd)
     {
-        let num_meshes = meshes.0.len();
-        if index.0 < num_meshes - 1 {
-            index.0 += 1;
-        }
+        //let num_meshes = meshes.0.len();
+        //if index.0 < num_meshes - 1 {
+        //    index.0 += 1;
+        //}
     }
     if keyboard_input.just_pressed(KeyCode::Minus)
         | keyboard_input.just_pressed(KeyCode::NumpadSubtract)
-        && index.0 > 0
+    //&& index.0 > 0
     {
-        index.0 -= 1;
+        //index.0 -= 1;
     }
 }
 
