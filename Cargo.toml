@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.72"
 rw-rs = { path = "../rw-rs" }
-bevy_flycam = { git = "https://github.com/sburris0/bevy_flycam.git", branch = "bevy_0.11" }
 
 [dependencies.bevy]
 version = "0.11.0"

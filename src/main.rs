@@ -1,4 +1,5 @@
 mod dat;
+mod flycam;
 
 use std::path::PathBuf;
 
@@ -6,6 +7,7 @@ use anyhow::bail;
 use bevy::{prelude::*, render::render_resource::PrimitiveTopology};
 
 use dat::{GameData, Ide};
+use flycam::*;
 use rw_rs::{bsf::*, img::Img};
 
 #[derive(Component)]
@@ -36,6 +38,7 @@ fn main() -> anyhow::Result<()> {
             }),
             ..default()
         }))
+        .add_plugins(NoCameraPlayerPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, (input_handler /*update_mesh*/,))
         .insert_resource(GameData {
@@ -68,17 +71,23 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
             mesh.set_indices(Some(bevy::render::mesh::Indices::U16(
                 geo.triangles
                     .iter()
-                    .flat_map(|t| t.as_arr())
+                    .flat_map(|t| to_xzy(t.as_arr()))
                     .collect::<Vec<_>>(),
             )));
             mesh.insert_attribute(
                 Mesh::ATTRIBUTE_POSITION,
-                geo.vertices.iter().map(|t| t.as_arr()).collect::<Vec<_>>(),
+                geo.vertices
+                    .iter()
+                    .map(|t| to_xzy(t.as_arr()))
+                    .collect::<Vec<_>>(),
             );
             if !geo.normals.is_empty() {
                 mesh.insert_attribute(
                     Mesh::ATTRIBUTE_NORMAL,
-                    geo.normals.iter().map(|t| t.as_arr()).collect::<Vec<_>>(),
+                    geo.normals
+                        .iter()
+                        .map(|t| to_xzy(t.as_arr()))
+                        .collect::<Vec<_>>(),
                 );
             }
             if geo.tex_coords.len() == 1 {
@@ -137,13 +146,16 @@ fn setup(
 
     // Transform for the camera and lighting, looking at (0,0,0) (the position of the mesh).
     let camera_and_light_transform =
-        Transform::from_xyz(1.8, 1.8, 1.8).looking_at(Vec3::ZERO, Vec3::Y);
+        Transform::from_xyz(0.0, 1000.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
     // Camera in 3D space.
-    commands.spawn(Camera3dBundle {
-        transform: camera_and_light_transform,
-        ..default()
-    });
+    commands.spawn((
+        Camera3dBundle {
+            transform: camera_and_light_transform,
+            ..default()
+        },
+        FlyCam,
+    ));
 
     // Light up the scene.
     commands.spawn(PointLightBundle {
@@ -156,7 +168,7 @@ fn setup(
         ..default()
     });
 
-    commands.spawn(
+    /*commands.spawn(
         TextBundle::from_section(
             "Controls:\nX/Y/Z: Rotate\nR: Reset orientation\n+/-: Show different geometry in dff",
             TextStyle {
@@ -170,7 +182,7 @@ fn setup(
             left: Val::Px(12.0),
             ..default()
         }),
-    );
+    );*/
 }
 
 fn input_handler(
@@ -230,4 +242,9 @@ fn update_mesh(
         let new_mesh = meshes.0.get(index.0).unwrap().clone();
         commands.entity(mesh_query.single()).insert(new_mesh);
     }
+}
+
+// For converting GTA coords system to Bevy
+fn to_xzy<T: Copy>(coords: [T; 3]) -> [T; 3] {
+    [coords[0], coords[2], coords[1]]
 }

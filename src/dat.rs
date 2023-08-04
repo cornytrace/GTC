@@ -16,9 +16,9 @@ pub struct GameData {
 impl GameData {
     pub fn load_dat(
         &mut self,
-        mut commands: &mut Commands,
-        mut meshes: &mut ResMut<Assets<Mesh>>,
-        mut materials: &mut ResMut<Assets<StandardMaterial>>,
+        commands: &mut Commands,
+        meshes: &mut ResMut<Assets<Mesh>>,
+        materials: &mut ResMut<Assets<StandardMaterial>>,
     ) -> anyhow::Result<()> {
         let dat = std::fs::read_to_string(self.data_dir.join("data/gta3.dat"))?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
@@ -47,9 +47,9 @@ impl GameData {
     pub fn load_ide(
         &mut self,
         path: &str,
-        mut commands: &mut Commands,
-        mut meshes: &mut ResMut<Assets<Mesh>>,
-        mut materials: &mut ResMut<Assets<StandardMaterial>>,
+        commands: &mut Commands,
+        meshes: &mut ResMut<Assets<Mesh>>,
+        materials: &mut ResMut<Assets<StandardMaterial>>,
     ) -> anyhow::Result<()> {
         let path = self.get_path(path).ok_or(anyhow!("{} not found!", path))?;
         let dat = std::fs::read_to_string(&path)?;
@@ -155,14 +155,14 @@ impl GameData {
                         transform: Transform {
                             translation: [
                                 words[2].parse().unwrap(),
-                                words[3].parse().unwrap(),
                                 words[4].parse().unwrap(),
+                                words[3].parse().unwrap(),
                             ]
                             .into(),
                             scale: [
                                 words[5].parse().unwrap(),
-                                words[6].parse().unwrap(),
                                 words[7].parse().unwrap(),
+                                words[6].parse().unwrap(),
                             ]
                             .into(),
                             rotation: Quat::from_array([
@@ -170,7 +170,8 @@ impl GameData {
                                 words[9].parse().unwrap(),
                                 words[10].parse().unwrap(),
                                 words[11].parse().unwrap(),
-                            ]),
+                            ])
+                            .normalize(),
                         },
                         ..default()
                     },));
