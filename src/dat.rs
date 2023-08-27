@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use anyhow::anyhow;
 use bevy::prelude::*;
-use rw_rs::{bsf::parse_bsf_chunk, img::Img};
+use rw_rs::{bsf::BsfChunk, img::Img};
 
 use crate::load_meshes;
 
@@ -32,9 +32,10 @@ impl GameData {
                 continue;
             }
 
-            match words[0].to_lowercase().as_str() {
+            let ty = words[0].to_lowercase();
+            match ty.as_str() {
                 "ide" | "mapzone" | "ipl" => {
-                    self.load_ide(words[1], commands, meshes, materials)?
+                    self.load_def(ty.as_str(), words[1], commands, meshes, materials)?
                 }
                 "splash" => {}
                 "colfile" => {}
@@ -44,8 +45,9 @@ impl GameData {
         Ok(())
     }
 
-    pub fn load_ide(
+    pub fn load_def(
         &mut self,
+        ty: &str,
         path: &str,
         commands: &mut Commands,
         meshes: &mut ResMut<Assets<Mesh>>,
@@ -117,7 +119,7 @@ impl GameData {
 
                 "peds" => {}
 
-                "path" => {}
+                "path" if ty == "ide" => {}
 
                 "2dfx" => {}
 
@@ -127,24 +129,26 @@ impl GameData {
 
                 "txdp" => {}
 
-                // MAPZONE
-                "zone" => {}
-
                 // IPL
                 "inst" => {
-                    debug!("loading {}", words[1]);
+                    if words[1].starts_with("LOD") {
+                        continue;
+                    }
+                    let name = format!("{}.dff", words[1]);
+
+                    debug!("loading {}", name);
                     let file = self
                         .img
-                        .get_file(&format!("{}.dff", words[1]))
-                        .unwrap_or_else(|| panic!("DFF {} not found in img", words[1]));
-                    let (_, bsf) = parse_bsf_chunk(&file).unwrap();
+                        .get_file(&name)
+                        .unwrap_or_else(|| panic!("{} not found in img", name));
+                    let (_, bsf) = BsfChunk::parse(&file).unwrap();
                     let meshes_vec = load_meshes(&bsf)
                         .into_iter()
                         .map(|m| meshes.add(m))
                         .collect::<Vec<_>>();
 
                     if meshes_vec.is_empty() {
-                        warn!("{} contained zero meshes", words[1]);
+                        warn!("{} contained zero meshes", name);
                         continue;
                     }
 
@@ -182,7 +186,7 @@ impl GameData {
 
                 "pick" => {}
 
-                "path" => {}
+                "path" if ty == "ipl" => {}
 
                 "occl" => {}
 

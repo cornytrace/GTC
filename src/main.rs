@@ -10,15 +10,6 @@ use dat::{GameData, Ide};
 use flycam::*;
 use rw_rs::{bsf::*, img::Img};
 
-#[derive(Component)]
-struct TheMesh;
-
-#[derive(Resource)]
-struct MeshIndex(usize);
-
-#[derive(Resource)]
-struct Meshes(Vec<Handle<Mesh>>);
-
 fn main() -> anyhow::Result<()> {
     let data_dir: PathBuf = PathBuf::from(std::env::var("GTA_DIR").unwrap_or(".".into()));
     if !data_dir.join("data/gta3.dat").exists() {
@@ -40,7 +31,6 @@ fn main() -> anyhow::Result<()> {
         }))
         .add_plugins(NoCameraPlayerPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (input_handler /*update_mesh*/,))
         .insert_resource(GameData {
             data_dir,
             img,
@@ -57,7 +47,7 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
     for geometry_chunk in &bsf
         .children
         .iter()
-        .find(|e| e.ty == ChunkType::GeometryList)
+        .find(|e| e.header.ty == ChunkType::GeometryList)
         .unwrap()
         .children[1..]
     {
@@ -122,7 +112,6 @@ fn setup(
         .load_dat(&mut commands, &mut meshes, &mut materials)
         .expect("Error loading gta3.dat");
 
-    // Transform for the camera and lighting, looking at (0,0,0) (the position of the mesh).
     let camera_and_light_transform =
         Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
@@ -170,20 +159,6 @@ fn setup(
             ..default()
         }),
     );*/
-}
-
-fn input_handler(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<&mut Transform, With<TheMesh>>,
-    //mut index: ResMut<MeshIndex>,
-    //meshes: Res<Meshes>,
-    time: Res<Time>,
-) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        //let mesh_handle = mesh_query.get_single().expect("Query not successful");
-        //let mesh = meshes.get_mut(mesh_handle).unwrap();
-        //toggle_texture(mesh);
-    }
 }
 
 // For converting GTA coords system to Bevy
