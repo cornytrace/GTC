@@ -1,14 +1,24 @@
 mod dat;
+mod objects;
+
 mod flycam;
 
-use std::{f32::consts::PI, path::PathBuf};
+use std::{f32::consts::PI, fs, path::PathBuf};
 
 use anyhow::bail;
-use bevy::{prelude::*, render::render_resource::PrimitiveTopology};
+use bevy::{
+    prelude::{shape::Quad, *},
+    render::render_resource::{Extent3d, PrimitiveTopology, TextureDimension, TextureFormat},
+};
 
 use dat::{GameData, Ide};
 use flycam::*;
-use rw_rs::{bsf::*, img::Img};
+use rw_rs::{
+    bsf::{tex::RasterFormat, *},
+    img::Img,
+};
+
+use num_traits::cast::FromPrimitive;
 
 fn main() -> anyhow::Result<()> {
     let data_dir: PathBuf = PathBuf::from(std::env::var("GTA_DIR").unwrap_or(".".into()));
@@ -84,6 +94,13 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
                 );
             }
 
+            /*if !geo.prelit.is_empty() {
+                mesh.insert_attribute(
+                    Mesh::ATTRIBUTE_COLOR,
+                    geo.prelit.iter().map(|c| c.as_arr()).collect::<Vec<_>>(),
+                );
+            }*/
+
             mesh.set_indices(Some(bevy::render::mesh::Indices::U16(
                 geo.triangles
                     .iter()
@@ -102,18 +119,75 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
     mesh_vec
 }
 
+fn load_textures(bsf: &BsfChunk) -> Vec<Image> {
+    let mut texture_vec = Vec::new();
+
+    if bsf.header.ty != ChunkType::TextureDictionary {
+        error!("File is not a TXD file!");
+        return texture_vec;
+    }
+
+    for raster in &bsf.children[1..] {
+        if let BsfChunkContent::RpRaster(raster) = &raster.content {
+            /*if (raster.raster_format & (RasterFormat::FormatExtPal8 as u32)) != 0
+                || (raster.raster_format & (RasterFormat::FormatExtPal4 as u32) != 0)
+            {
+                todo!("Palette textures not supported yet");
+            }*/
+
+            let raster_format = raster.raster_format
+                & !(RasterFormat::FormatExtAutoMipmap as u32)
+                & !(RasterFormat::FormatExtPal4 as u32)
+                & !(RasterFormat::FormatExtPal8 as u32)
+                & !(RasterFormat::FormatExtMipmap as u32);
+            let raster_format = RasterFormat::from_u32(raster_format).unwrap();
+            let format = match raster_format {
+                RasterFormat::Format8888 => TextureFormat::Rgba8Uint,
+                RasterFormat::Format888 => TextureFormat::Rgba8Uint,
+                _ => unimplemented!(),
+            };
+            let image = Image::new(
+                Extent3d {
+                    width: raster.width.into(),
+                    height: raster.height.into(),
+                    depth_or_array_layers: raster.depth.into(),
+                },
+                TextureDimension::D2,
+                raster.data.clone(),
+                format,
+            );
+            texture_vec.push(image);
+        } else {
+            error!("Unexpected type {:?} found in TXD file", raster.header.ty);
+            continue;
+        }
+    }
+
+    texture_vec
+}
+
 fn setup(
     mut commands: Commands,
     mut file_data: ResMut<GameData>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    file_data
-        .load_dat(&mut commands, &mut meshes, &mut materials)
-        .expect("Error loading gta3.dat");
+    let splash = fs::read(file_data.data_dir.join("txd/SPLASH1.TXD")).unwrap();
+    let (_, tex_bsf) = BsfChunk::parse(&splash).unwrap();
+    let images = load_textures(&tex_bsf);
 
     let camera_and_light_transform =
         Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
+
+    commands.spawn(PbrBundle {
+        mesh: meshes.add(Mesh::from(Quad::new([2.0, 1.0].into()))),
+        transform: camera_and_light_transform,
+        ..default()
+    });
+
+    file_data
+        .load_dat(&mut commands, &mut meshes, &mut materials)
+        .expect("Error loading gta3.dat");
 
     // Camera in 3D space.
     commands.spawn((

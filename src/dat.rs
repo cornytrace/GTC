@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use bevy::prelude::*;
 use rw_rs::{bsf::BsfChunk, img::Img};
 
-use crate::load_meshes;
+use crate::{load_meshes, objects::spawn_obj};
 
 #[derive(Resource)]
 pub struct GameData {
@@ -136,48 +136,27 @@ impl GameData {
                     }
                     let name = format!("{}.dff", words[1]);
 
-                    debug!("loading {}", name);
-                    let file = self
-                        .img
-                        .get_file(&name)
-                        .unwrap_or_else(|| panic!("{} not found in img", name));
-                    let (_, bsf) = BsfChunk::parse(&file).unwrap();
-                    let meshes_vec = load_meshes(&bsf)
-                        .into_iter()
-                        .map(|m| meshes.add(m))
-                        .collect::<Vec<_>>();
+                    let pos = [
+                        -(words[2].parse::<f32>().unwrap()),
+                        words[4].parse().unwrap(),
+                        words[3].parse::<f32>().unwrap(),
+                    ];
 
-                    if meshes_vec.is_empty() {
-                        warn!("{} contained zero meshes", name);
-                        continue;
-                    }
+                    let scale = [
+                        words[5].parse().unwrap(),
+                        words[6].parse().unwrap(),
+                        words[7].parse().unwrap(),
+                    ];
 
-                    commands.spawn((PbrBundle {
-                        mesh: meshes_vec[0].clone(),
-                        material: materials.add(StandardMaterial { ..default() }),
-                        transform: Transform {
-                            translation: [
-                                -(words[2].parse::<f32>().unwrap()),
-                                words[4].parse().unwrap(),
-                                words[3].parse::<f32>().unwrap(),
-                            ]
-                            .into(),
-                            scale: [
-                                words[5].parse().unwrap(),
-                                words[6].parse().unwrap(),
-                                words[7].parse().unwrap(),
-                            ]
-                            .into(),
-                            rotation: Quat::from_array([
-                                words[8].parse::<f32>().unwrap(),
-                                -words[10].parse::<f32>().unwrap(),
-                                -words[9].parse::<f32>().unwrap(),
-                                words[11].parse::<f32>().unwrap(),
-                            ])
-                            .normalize(),
-                        },
-                        ..default()
-                    },));
+                    let rot = Quat::from_array([
+                        words[8].parse::<f32>().unwrap(),
+                        -words[10].parse::<f32>().unwrap(),
+                        -words[9].parse::<f32>().unwrap(),
+                        words[11].parse::<f32>().unwrap(),
+                    ])
+                    .normalize();
+
+                    spawn_obj(&name, pos, scale, rot, self, meshes, materials, commands);
                 }
 
                 "zone" => {}

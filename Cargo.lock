@@ -1624,6 +1624,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bevy",
+ "num-traits",
  "rw-rs",
 ]
 
@@ -2534,6 +2535,7 @@ name = "rw-rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bevy",
  "binrw",
  "nom",
  "nom-derive",
