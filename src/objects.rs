@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rw_rs::bsf::BsfChunk;
 
-use crate::{dat::GameData, load_meshes};
+use crate::{dat::GameData, load_meshes, IMG};
 
 pub fn spawn_obj(
     name: &str,
@@ -14,9 +14,10 @@ pub fn spawn_obj(
     commands: &mut Commands,
 ) {
     debug!("loading {}", name);
-    let file = data
-        .img
-        .get_file(&name)
+    let file = IMG
+        .lock()
+        .unwrap()
+        .get_file(name)
         .unwrap_or_else(|| panic!("{} not found in img", name));
     let (_, bsf) = BsfChunk::parse(&file).unwrap();
     let meshes_vec = load_meshes(&bsf)

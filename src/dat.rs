@@ -4,12 +4,11 @@ use anyhow::anyhow;
 use bevy::prelude::*;
 use rw_rs::{bsf::BsfChunk, img::Img};
 
-use crate::{load_meshes, objects::spawn_obj};
+use crate::{load_meshes, objects::spawn_obj, to_xzy};
 
 #[derive(Resource)]
 pub struct GameData {
     pub data_dir: PathBuf,
-    pub img: Img<'static>,
     pub ide: Ide,
 }
 
@@ -136,11 +135,11 @@ impl GameData {
                     }
                     let name = format!("{}.dff", words[1]);
 
-                    let pos = [
-                        -(words[2].parse::<f32>().unwrap()),
-                        words[4].parse().unwrap(),
+                    let pos = to_xzy([
+                        words[2].parse::<f32>().unwrap(),
                         words[3].parse::<f32>().unwrap(),
-                    ];
+                        words[4].parse::<f32>().unwrap(),
+                    ]);
 
                     let scale = [
                         words[5].parse().unwrap(),
