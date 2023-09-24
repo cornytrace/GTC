@@ -10,7 +10,8 @@ anyhow = "1.0.72"
 lazy_static = "1.4.0"
 nom-derive = "0.10.1"
 num-traits = "0.2.16"
-rw-rs = { path = "../rw-rs", features = ["bevy"] }
+rw-rs = { path = "../rw-rs" }
+thiserror = "1.0.48"
 
 [dependencies.bevy]
 version = "0.11.0"

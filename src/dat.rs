@@ -1,14 +1,23 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::anyhow;
 use bevy::prelude::*;
 use rw_rs::{bsf::BsfChunk, img::Img};
 
-use crate::{load_meshes, objects::spawn_obj, to_xzy};
+use crate::{
+    load_meshes,
+    objects::spawn_obj,
+    to_xzy,
+    utils::{get_path, to_path},
+    DATA_DIR,
+};
 
 #[derive(Resource)]
 pub struct GameData {
-    pub data_dir: PathBuf,
     pub ide: Ide,
 }
 
@@ -19,7 +28,7 @@ impl GameData {
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<StandardMaterial>>,
     ) -> anyhow::Result<()> {
-        let dat = std::fs::read_to_string(self.data_dir.join("data/gta3.dat"))?;
+        let dat = std::fs::read_to_string(DATA_DIR.join("data/gta3.dat"))?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
         for line in lines {
             let line = line;
@@ -52,7 +61,7 @@ impl GameData {
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<StandardMaterial>>,
     ) -> anyhow::Result<()> {
-        let path = self.get_path(path).ok_or(anyhow!("{} not found!", path))?;
+        let path = get_path(&to_path(path)).ok_or(anyhow!("{} not found!", path))?;
         let dat = std::fs::read_to_string(&path)?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
 
@@ -183,32 +192,6 @@ impl GameData {
             }
         }
         Ok(())
-    }
-
-    // Case-insensitive path search from data_dir
-    pub fn get_path(&self, path: &str) -> Option<PathBuf> {
-        let mut matched = self.data_dir.to_owned();
-        let path = path.replace('\\', "/");
-        for elem in path.split('/') {
-            let Ok(iter) = fs::read_dir(&matched) else {
-                return None;
-            };
-            let mut found = String::new();
-            for file in iter {
-                let Ok(file) = file else { continue };
-                let file_name = file.file_name();
-                let file_name = file_name.to_string_lossy();
-                if file_name.to_ascii_lowercase() == elem.to_ascii_lowercase() {
-                    found = file_name.to_string();
-                    break;
-                }
-            }
-            if found.is_empty() {
-                return None;
-            }
-            matched = matched.join(found);
-        }
-        Some(matched)
     }
 }
 

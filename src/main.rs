@@ -1,5 +1,7 @@
+mod assets;
 mod dat;
 mod objects;
+mod utils;
 
 mod flycam;
 
@@ -11,6 +13,7 @@ use std::{
 };
 
 use anyhow::bail;
+use assets::{CustomAssetIoPlugin, Txd};
 use bevy::{
     asset::AssetIo,
     prelude::{shape::Quad, *},
@@ -59,7 +62,6 @@ fn main() -> anyhow::Result<()> {
         .add_plugins(NoCameraPlayerPlugin)
         .add_systems(Startup, setup)
         .insert_resource(GameData {
-            data_dir: DATA_DIR.to_path_buf(),
             ide: Ide::default(),
         })
         .run();
@@ -135,92 +137,16 @@ fn load_meshes(bsf: &BsfChunk) -> Vec<Mesh> {
     mesh_vec
 }
 
-fn load_textures(bsf: &BsfChunk) -> Vec<Image> {
-    let mut texture_vec = Vec::new();
-
-    if bsf.header.ty != ChunkType::TextureDictionary {
-        error!("File is not a TXD file!");
-        return texture_vec;
-    }
-
-    for raster in &bsf.children[1..] {
-        if let BsfChunkContent::RpRaster(raster) = &raster.content {
-            let mut data: Vec<u8> = Vec::new();
-            if (raster.raster_format & (RasterFormat::FormatExtPal8 as u32)) != 0 {
-                let (indices, palette) = RpRasterPalette::<256>::parse(&raster.data).unwrap();
-                let indices = &indices[3..];
-                for h in 0..(raster.height as usize) {
-                    for w in 0..(raster.width as usize) {
-                        let index = indices[w + (h * (raster.width as usize))];
-                        let color = palette.0[index as usize];
-                        data.push(color.r);
-                        data.push(color.g);
-                        data.push(color.b);
-                        data.push(color.a);
-                    }
-                }
-            } else if (raster.raster_format & (RasterFormat::FormatExtPal4 as u32)) != 0 {
-                let (indices, palette) = RpRasterPalette::<32>::parse(&raster.data).unwrap();
-                let indices = &indices[3..];
-                for h in 0..(raster.height as usize) {
-                    for w in 0..(raster.width as usize) {
-                        let index = indices[w + (h * (raster.width as usize))];
-                        let color = palette.0[index as usize];
-                        data.push(color.r);
-                        data.push(color.g);
-                        data.push(color.b);
-                        data.push(color.a);
-                    }
-                }
-            } else {
-                data = raster.data.clone();
-            }
-
-            let raster_format = raster.raster_format
-                & !(RasterFormat::FormatExtAutoMipmap as u32)
-                & !(RasterFormat::FormatExtPal4 as u32)
-                & !(RasterFormat::FormatExtPal8 as u32)
-                & !(RasterFormat::FormatExtMipmap as u32);
-            let raster_format = RasterFormat::from_u32(raster_format).unwrap();
-            let format = match raster_format {
-                RasterFormat::Format8888 => TextureFormat::Rgba8Unorm,
-                RasterFormat::Format888 => TextureFormat::Rgba8Unorm,
-                _ => unimplemented!(),
-            };
-            let image = Image::new(
-                Extent3d {
-                    width: raster.width.into(),
-                    height: raster.height.into(),
-                    depth_or_array_layers: 1,
-                },
-                TextureDimension::D2,
-                data,
-                format,
-            );
-            texture_vec.push(image);
-        } else {
-            error!("Unexpected type {:?} found in TXD file", raster.header.ty);
-            continue;
-        }
-    }
-
-    texture_vec
-}
-
 fn setup(
     mut commands: Commands,
     mut file_data: ResMut<GameData>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    txds: Res<Assets<Txd>>,
+    asset_server: Res<AssetServer>,
 ) {
-    let splash = fs::read(file_data.data_dir.join("txd/SPLASH1.TXD")).unwrap();
-    let (_, tex_bsf) = BsfChunk::parse(&splash).unwrap();
-    let images_vec = load_textures(&tex_bsf);
-    let images_vec = images_vec
-        .into_iter()
-        .map(|i| images.add(i))
-        .collect::<Vec<_>>();
+    let splash: Handle<Image> = asset_server.load("txd/splash1.txd#splash1");
 
     let camera_and_light_transform =
         Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
@@ -228,7 +154,7 @@ fn setup(
     commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(Quad::new([2.0, 1.0].into()))),
         material: materials.add(StandardMaterial {
-            base_color_texture: Some(images_vec[0].clone()),
+            base_color_texture: Some(splash),
             ..Default::default()
         }),
         transform: camera_and_light_transform,
@@ -288,88 +214,4 @@ fn setup(
 // For converting GTA coords system to Bevy
 fn to_xzy<T: Copy + std::ops::Neg<Output = T>>(coords: [T; 3]) -> [T; 3] {
     [-coords[0], coords[2], coords[1]]
-}
-
-struct GTAAssetIo(Box<dyn AssetIo>);
-
-impl AssetIo for GTAAssetIo {
-    fn load_path<'a>(
-        &'a self,
-        path: &'a std::path::Path,
-    ) -> bevy::utils::BoxedFuture<'a, anyhow::Result<Vec<u8>, bevy::asset::AssetIoError>> {
-        if path.components().count() == 1
-            && path
-                .extension()
-                .is_some_and(|x| x.eq_ignore_ascii_case("dff") || x.eq_ignore_ascii_case("txd"))
-        {
-            let path_ext = path.extension();
-            if let Some(path_ext) = path_ext {
-                if let Some(file) = IMG
-                    .lock()
-                    .unwrap()
-                    .get_file(path.to_string_lossy().as_ref())
-                {
-                    return Box::pin(async move { Ok(file.clone()) });
-                } else if path_ext.eq_ignore_ascii_case("dff") {
-                    return Box::pin(async move {
-                        self.0.load_path(&Path::new("models").join(path)).await
-                    });
-                } else if path_ext.eq_ignore_ascii_case("txd") {
-                    return Box::pin(async move {
-                        self.0.load_path(&Path::new("txd").join(path)).await
-                    });
-                } else {
-                    return self.0.load_path(path);
-                }
-            }
-        }
-        self.0.load_path(path)
-    }
-
-    fn read_directory(
-        &self,
-        path: &std::path::Path,
-    ) -> anyhow::Result<Box<dyn Iterator<Item = PathBuf>>, bevy::asset::AssetIoError> {
-        self.0.read_directory(path)
-    }
-
-    fn get_metadata(
-        &self,
-        path: &std::path::Path,
-    ) -> anyhow::Result<bevy::asset::Metadata, bevy::asset::AssetIoError> {
-        self.0.get_metadata(path)
-    }
-
-    fn watch_path_for_changes(
-        &self,
-        to_watch: &std::path::Path,
-        to_reload: Option<PathBuf>,
-    ) -> anyhow::Result<(), bevy::asset::AssetIoError> {
-        self.0.watch_path_for_changes(to_watch, to_reload)
-    }
-
-    fn watch_for_changes(
-        &self,
-        configuration: &bevy::asset::ChangeWatcher,
-    ) -> anyhow::Result<(), bevy::asset::AssetIoError> {
-        self.0.watch_for_changes(configuration)
-    }
-}
-
-struct CustomAssetIoPlugin;
-
-impl Plugin for CustomAssetIoPlugin {
-    fn build(&self, app: &mut App) {
-        let default_io = AssetPlugin {
-            asset_folder: DATA_DIR.to_string_lossy().to_string(),
-            ..Default::default()
-        }
-        .create_platform_default_asset_io();
-
-        // create the custom asset io instance
-        let asset_io = GTAAssetIo(default_io);
-
-        // the asset server is constructed and added the resource manager
-        app.insert_resource(AssetServer::new(asset_io));
-    }
 }
