@@ -1,5 +1,4 @@
 use std::{
-    ffi::OsStr,
     fs,
     path::{Path, PathBuf},
 };
@@ -36,4 +35,9 @@ pub fn get_path(path: &Path) -> Option<PathBuf> {
 // We need this to deal with windows paths on non-windows platforms
 pub fn to_path(input: &str) -> PathBuf {
     PathBuf::from(input.replace('\\', "/"))
+}
+
+// For converting GTA coords system to Bevy
+pub fn to_xzy<T: Copy + std::ops::Neg<Output = T>>(coords: [T; 3]) -> [T; 3] {
+    [-coords[0], coords[2], coords[1]]
 }

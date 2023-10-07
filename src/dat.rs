@@ -27,6 +27,7 @@ impl GameData {
         commands: &mut Commands,
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<StandardMaterial>>,
+        server: Res<AssetServer>,
     ) -> anyhow::Result<()> {
         let dat = std::fs::read_to_string(DATA_DIR.join("data/gta3.dat"))?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
@@ -43,7 +44,7 @@ impl GameData {
             let ty = words[0].to_lowercase();
             match ty.as_str() {
                 "ide" | "mapzone" | "ipl" => {
-                    self.load_def(ty.as_str(), words[1], commands, meshes, materials)?
+                    self.load_def(ty.as_str(), words[1], commands, meshes, materials, &server)?
                 }
                 "splash" => {}
                 "colfile" => {}
@@ -60,6 +61,7 @@ impl GameData {
         commands: &mut Commands,
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<StandardMaterial>>,
+        server: &Res<AssetServer>,
     ) -> anyhow::Result<()> {
         let path = get_path(&to_path(path)).ok_or(anyhow!("{} not found!", path))?;
         let dat = std::fs::read_to_string(&path)?;
@@ -119,7 +121,37 @@ impl GameData {
                     self.ide.objs.insert(obj.id, obj);
                 }
 
-                "tobj" => {}
+                "tobj" => {
+                    // TODO: parse TimeOn & TimeOff
+                    let mut obj = IdeObj {
+                        id: words[0].parse().unwrap(),
+                        model_name: words[1].to_string(),
+                        txd_name: words[2].to_string(),
+                        mesh_count: 0,
+                        draw_distance: [0.0; 3],
+                        flags: 0,
+                    };
+                    match words.len() {
+                        n @ 8..=10 => {
+                            let n = n - 7;
+                            obj.mesh_count = n as u32;
+                            for i in 0..n {
+                                obj.draw_distance[i] = words[4 + i].parse().unwrap();
+                            }
+                            obj.flags = words[4 + n].parse().unwrap();
+                        }
+                        7 => {
+                            obj.mesh_count = 1;
+                            obj.draw_distance[0] = words[3].parse().unwrap();
+                            obj.flags = words[4].parse().unwrap();
+                        }
+                        _ => {
+                            error!("Error parsing obj on line {} of file {}, invalid amount of arguments", linecount, &path.display());
+                            continue;
+                        }
+                    }
+                    self.ide.objs.insert(obj.id, obj);
+                }
 
                 "hier" => {}
 
@@ -164,7 +196,18 @@ impl GameData {
                     ])
                     .normalize();
 
-                    spawn_obj(&name, pos, scale, rot, self, meshes, materials, commands);
+                    spawn_obj(
+                        words[0].parse::<u32>().unwrap(),
+                        &name,
+                        pos,
+                        scale,
+                        rot,
+                        self,
+                        meshes,
+                        materials,
+                        &server,
+                        commands,
+                    );
                 }
 
                 "zone" => {}
@@ -198,6 +241,12 @@ impl GameData {
 #[derive(Default)]
 pub struct Ide {
     objs: HashMap<u32, IdeObj>,
+}
+
+impl Ide {
+    pub fn get_by_id(&self, id: u32) -> Option<&IdeObj> {
+        self.objs.get(&id)
+    }
 }
 
 pub struct IdeObj {
