@@ -4,19 +4,22 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{utils::get_path, DATA_DIR, IMG};
+use crate::{utils::get_path, IMG};
 use anyhow::Result;
 use bevy::{
     asset::{AssetIo, AssetIoError, AssetLoader, LoadedAsset},
     prelude::*,
     reflect::TypeUuid,
-    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
+    render::{
+        render_resource::{Extent3d, TextureDimension, TextureFormat},
+        texture::TextureFormatPixelInfo,
+    },
 };
 use nom_derive::Parse;
 use num_traits::FromPrimitive;
 use rw_rs::bsf::{
     tex::{RasterFormat, RpRasterPalette},
-    BsfChunk, BsfChunkContent, BsfHeader, ChunkType,
+    BsfChunk, BsfChunkContent, ChunkType,
 };
 use thiserror::Error;
 
@@ -49,7 +52,9 @@ impl AssetIo for GTAAssetIo {
                     });
                 } else if path_ext.eq_ignore_ascii_case("txd") {
                     return Box::pin(async move {
-                        let Some(path) = get_path(&Path::new("txd").join(path)) else {
+                        let Some(path) = get_path(&Path::new("txd").join(path))
+                            .or_else(|| get_path(&Path::new("models").join(path)))
+                        else {
                             return Err(AssetIoError::NotFound(path.to_path_buf()));
                         };
                         fs::read(path).map_err(AssetIoError::Io)
@@ -65,8 +70,7 @@ impl AssetIo for GTAAssetIo {
             }
         }
         if let Some(path) = get_path(path) {
-            //return Box::pin(async move { fs::read(path).map_err(AssetIoError::Io) });
-            return Box::pin(async move { Ok(fs::read(path).unwrap()) });
+            return Box::pin(async move { fs::read(path).map_err(AssetIoError::Io) });
         }
         Box::pin(async move { Err(AssetIoError::NotFound(path.to_path_buf())) })
     }
@@ -168,7 +172,7 @@ async fn load_textures<'a, 'b>(
             let mut data: Vec<u8> = Vec::new();
             if (raster.raster_format & (RasterFormat::FormatExtPal8 as u32)) != 0 {
                 let (indices, palette) = RpRasterPalette::<256>::parse(&raster.data).unwrap();
-                let indices = &indices[3..];
+                let indices = &indices[5..];
                 for h in 0..(raster.height as usize) {
                     for w in 0..(raster.width as usize) {
                         let index = indices[w + (h * (raster.width as usize))];
@@ -181,7 +185,7 @@ async fn load_textures<'a, 'b>(
                 }
             } else if (raster.raster_format & (RasterFormat::FormatExtPal4 as u32)) != 0 {
                 let (indices, palette) = RpRasterPalette::<32>::parse(&raster.data).unwrap();
-                let indices = &indices[3..];
+                let indices = &indices[5..];
                 for h in 0..(raster.height as usize) {
                     for w in 0..(raster.width as usize) {
                         let index = indices[w + (h * (raster.width as usize))];
@@ -193,7 +197,7 @@ async fn load_textures<'a, 'b>(
                     }
                 }
             } else {
-                data = raster.data.clone();
+                data = raster.data[4..].to_vec();
             }
 
             let raster_format = raster.raster_format
@@ -214,7 +218,8 @@ async fn load_textures<'a, 'b>(
                     depth_or_array_layers: 1,
                 },
                 TextureDimension::D2,
-                data,
+                data[0..raster.width as usize * raster.height as usize * format.pixel_size()]
+                    .to_vec(),
                 format,
             );
 
