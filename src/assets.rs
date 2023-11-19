@@ -172,7 +172,7 @@ async fn load_textures<'a, 'b>(
             let mut data: Vec<u8> = Vec::new();
             if (raster.raster_format & (RasterFormat::FormatExtPal8 as u32)) != 0 {
                 let (indices, palette) = RpRasterPalette::<256>::parse(&raster.data).unwrap();
-                let indices = &indices[5..];
+                let indices = &indices[4..];
                 for h in 0..(raster.height as usize) {
                     for w in 0..(raster.width as usize) {
                         let index = indices[w + (h * (raster.width as usize))];
@@ -185,7 +185,7 @@ async fn load_textures<'a, 'b>(
                 }
             } else if (raster.raster_format & (RasterFormat::FormatExtPal4 as u32)) != 0 {
                 let (indices, palette) = RpRasterPalette::<32>::parse(&raster.data).unwrap();
-                let indices = &indices[5..];
+                let indices = &indices[4..];
                 for h in 0..(raster.height as usize) {
                     for w in 0..(raster.width as usize) {
                         let index = indices[w + (h * (raster.width as usize))];
@@ -225,7 +225,7 @@ async fn load_textures<'a, 'b>(
 
             let asset = LoadedAsset::new(image);
             texture_vec.push(load_context.set_labeled_asset(&raster.name, asset));
-        } else if matches!(raster.content, ChunkContent::Extension) {
+        } else if !matches!(raster.content, ChunkContent::Extension) {
             error!("Unexpected type {:?} found in TXD file", raster.content);
             continue;
         }

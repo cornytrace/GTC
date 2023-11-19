@@ -16,6 +16,7 @@ use anyhow::bail;
 use assets::{CustomAssetIoPlugin, Txd};
 use bevy::{
     asset::AssetIo,
+    log::LogPlugin,
     prelude::{shape::Quad, *},
     render::render_resource::{Extent3d, PrimitiveTopology, TextureDimension, TextureFormat},
 };
@@ -57,6 +58,10 @@ fn main() -> anyhow::Result<()> {
                     }),
                     ..default()
                 })
+                .set(LogPlugin {
+                    filter: "info,wgpu_core=warn,wgpu_hal=warn,gtc=debug".into(),
+                    level: bevy::log::Level::DEBUG,
+                })
                 .add_before::<bevy::asset::AssetPlugin, _>(CustomAssetIoPlugin),
         )
         .add_plugins((NoCameraPlayerPlugin, WorldInspectorPlugin::new()))
@@ -78,7 +83,7 @@ fn load_meshes(
     for geometry_chunk in &bsf
         .get_children()
         .iter()
-        .find(|e| matches!(e.content, ChunkContent::Geometry(_)))
+        .find(|e| matches!(e.content, ChunkContent::GeometryList))
         .unwrap()
         .get_children()[1..]
     {
@@ -96,11 +101,27 @@ fn load_meshes(
                 .map(|t| to_xzy(t.as_arr()))
                 .collect::<Vec<_>>();
 
-            let normals = geo
+            let mut normals = geo
                 .normals
                 .iter()
-                .map(|t| to_xzy(t.as_arr()))
+                .map(|t| Vec3::from(to_xzy(t.as_arr())))
                 .collect::<Vec<_>>();
+
+            if normals.is_empty() {
+                normals = vec![Vec3::ZERO; vertices.len()];
+                for t in &geo.triangles {
+                    let v1: Vec3 = vertices[t.vertex1 as usize].into();
+                    let v2: Vec3 = vertices[t.vertex2 as usize].into();
+                    let v3: Vec3 = vertices[t.vertex3 as usize].into();
+                    let edge12 = v2 - v1;
+                    let edge13 = v3 - v1;
+                    let normal = edge12.cross(edge13);
+                    normals[t.vertex1 as usize] += normal;
+                    normals[t.vertex2 as usize] += normal;
+                    normals[t.vertex3 as usize] += normal;
+                }
+                normals = normals.into_iter().map(|n| n.normalize()).collect();
+            }
 
             let tex_coords = geo
                 .tex_coords
@@ -127,16 +148,11 @@ fn load_meshes(
                     let mut mesh = Mesh::new(topo);
 
                     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices.clone());
-                    if !geo.normals.is_empty() {
-                        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals.clone());
-                    }
+
+                    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals.clone());
+
                     if geo.tex_coords.len() == 1 {
                         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, tex_coords.clone());
-                    }
-
-                    if geo.normals.is_empty() {
-                        mesh.duplicate_vertices();
-                        mesh.compute_flat_normals();
                     }
 
                     let triangles = geo
@@ -150,15 +166,16 @@ fn load_meshes(
 
                     // Material
                     let mut tex_handle: Option<Handle<Image>> = None;
-                    if let Some(tex_chunk) = mat_chunk.get_children().get(1) {
+                    if let Some(tex_chunk) = mat_chunk.get_children().get(0) {
                         if matches!(tex_chunk.content, ChunkContent::Texture(_)) {
                             if let ChunkContent::String(tex_name) =
-                                &tex_chunk.get_children()[1].content
+                                &tex_chunk.get_children()[0].content
                             {
                                 let tex_path = format!("{txd_name}.txd#{tex_name}");
                                 warn!("Loading {}", tex_path);
-                                tex_handle = Some(server.load(tex_path));
+                                let tex = server.load(tex_path);
                                 //TODO set sampler properties
+                                tex_handle = Some(tex);
                             }
                         }
                     }
@@ -166,9 +183,9 @@ fn load_meshes(
                     let std_mat = StandardMaterial {
                         base_color: Color::WHITE,
                         base_color_texture: tex_handle,
-                        double_sided: true,
                         cull_mode: None,
-                        unlit: true,
+                        double_sided: true,
+                        unlit: false,
                         ..Default::default()
                     };
 
@@ -206,7 +223,7 @@ fn setup(
         Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
     let mut ent = commands.spawn(SpatialBundle {
-        transform: camera_and_light_transform,
+        transform: Transform::from_xyz(0.0, 290.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
     });
     ent.with_children(|parent| {
