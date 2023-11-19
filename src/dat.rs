@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::anyhow;
 use bevy::prelude::*;
-use rw_rs::{bsf::BsfChunk, img::Img};
+use rw_rs::{bsf::Chunk, img::Img};
 
 use crate::{
     load_meshes,

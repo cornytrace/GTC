@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rw_rs::bsf::BsfChunk;
+use rw_rs::bsf::Chunk;
 
 use crate::{dat::GameData, load_meshes, IMG};
 
@@ -26,7 +26,7 @@ pub fn spawn_obj(
         .unwrap()
         .get_file(name)
         .unwrap_or_else(|| panic!("{} not found in img", name));
-    let (_, bsf) = BsfChunk::parse(&file).unwrap();
+    let (_, bsf) = Chunk::parse(&file).unwrap();
     let meshes_vec = load_meshes(&bsf, &ide.txd_name, server)
         .into_iter()
         .last()

@@ -31,8 +31,6 @@ use rw_rs::{
     img::Img,
 };
 
-use num_traits::cast::FromPrimitive;
-
 use nom_derive::Parse;
 
 use lazy_static::lazy_static;
@@ -72,20 +70,20 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn load_meshes(
-    bsf: &BsfChunk,
+    bsf: &Chunk,
     txd_name: &str,
     server: &Res<AssetServer>,
 ) -> Vec<Vec<(Mesh, StandardMaterial)>> {
     let mut res = Vec::new();
     for geometry_chunk in &bsf
-        .children
+        .get_children()
         .iter()
-        .find(|e| e.header.ty == ChunkType::GeometryList)
+        .find(|e| matches!(e.content, ChunkContent::Geometry(_)))
         .unwrap()
-        .children[1..]
+        .get_children()[1..]
     {
         let mut mesh_mat_vec = Vec::new();
-        if let BsfChunkContent::RpGeometry(geo) = &geometry_chunk.content {
+        if let ChunkContent::Geometry(geo) = &geometry_chunk.content {
             let topo = if geo.is_tristrip() {
                 PrimitiveTopology::TriangleStrip
             } else {
@@ -115,13 +113,13 @@ fn load_meshes(
             let _prelit = geo.prelit.iter().map(|c| c.as_arr()).collect::<Vec<_>>();
 
             let mat_list = geometry_chunk
-                .children
+                .get_children()
                 .iter()
-                .find(|c| c.header.ty == ChunkType::MaterialList)
+                .find(|c| matches!(c.content, ChunkContent::MaterialList(_)))
                 .expect("geometry needs material list");
-            if let BsfChunkContent::RpMaterialList(list) = &mat_list.content {
-                for (i, mat_chunk) in mat_list.children.iter().enumerate() {
-                    let BsfChunkContent::RpMaterial(mat) = mat_chunk.content else {
+            if let ChunkContent::MaterialList(list) = &mat_list.content {
+                for (i, mat_chunk) in mat_list.get_children().iter().enumerate() {
+                    let ChunkContent::Material(mat) = mat_chunk.content else {
                         continue;
                     };
 
@@ -152,10 +150,10 @@ fn load_meshes(
 
                     // Material
                     let mut tex_handle: Option<Handle<Image>> = None;
-                    if let Some(tex_chunk) = mat_chunk.children.get(1) {
-                        if tex_chunk.header.ty == ChunkType::Texture {
-                            if let BsfChunkContent::String(tex_name) =
-                                &tex_chunk.children[1].content
+                    if let Some(tex_chunk) = mat_chunk.get_children().get(1) {
+                        if matches!(tex_chunk.content, ChunkContent::Texture(_)) {
+                            if let ChunkContent::String(tex_name) =
+                                &tex_chunk.get_children()[1].content
                             {
                                 let tex_path = format!("{txd_name}.txd#{tex_name}");
                                 warn!("Loading {}", tex_path);
@@ -195,7 +193,7 @@ fn setup(
     let splash: Handle<Image> = asset_server.load("dyntraffic.txd#towaway");
 
     let tl = IMG.lock().unwrap().get_file("trafficlight1.dff").unwrap();
-    let (_, tl) = BsfChunk::parse(&tl).unwrap();
+    let (_, tl) = Chunk::parse(&tl).unwrap();
     let meshes_vec = load_meshes(&tl, "dyntraffic", &asset_server)
         .into_iter()
         .last()

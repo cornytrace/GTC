@@ -19,7 +19,7 @@ use nom_derive::Parse;
 use num_traits::FromPrimitive;
 use rw_rs::bsf::{
     tex::{RasterFormat, RpRasterPalette},
-    BsfChunk, BsfChunkContent, ChunkType,
+    Chunk, ChunkContent,
 };
 use thiserror::Error;
 
@@ -158,17 +158,17 @@ async fn load_textures<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut bevy::asset::LoadContext<'b>,
 ) -> Result<(), TxdError> {
-    let Ok((_, bsf)) = BsfChunk::parse(bytes) else {
+    let Ok((_, bsf)) = Chunk::parse(bytes) else {
         return Err(TxdError::InvalidTxd);
     };
-    if bsf.header.ty != ChunkType::TextureDictionary {
+    if !matches!(bsf.content, ChunkContent::TextureDictionary) {
         return Err(TxdError::InvalidTxd);
     }
 
     let mut texture_vec = Vec::new();
 
-    for raster in &bsf.children[1..] {
-        if let BsfChunkContent::RpRaster(raster) = &raster.content {
+    for raster in &bsf.get_children()[1..] {
+        if let ChunkContent::Raster(raster) = &raster.content {
             let mut data: Vec<u8> = Vec::new();
             if (raster.raster_format & (RasterFormat::FormatExtPal8 as u32)) != 0 {
                 let (indices, palette) = RpRasterPalette::<256>::parse(&raster.data).unwrap();
@@ -225,8 +225,8 @@ async fn load_textures<'a, 'b>(
 
             let asset = LoadedAsset::new(image);
             texture_vec.push(load_context.set_labeled_asset(&raster.name, asset));
-        } else if raster.header.ty != ChunkType::Extension {
-            error!("Unexpected type {:?} found in TXD file", raster.header.ty);
+        } else if matches!(raster.content, ChunkContent::Extension) {
+            error!("Unexpected type {:?} found in TXD file", raster.content);
             continue;
         }
     }
