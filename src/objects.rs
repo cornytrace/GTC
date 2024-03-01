@@ -50,7 +50,11 @@ pub fn spawn_obj(
     });
     ent.with_children(|parent| {
         for (mesh, material) in meshes_vec {
-            parent.spawn((PbrBundle { mesh, ..default() },));
+            parent.spawn((PbrBundle {
+                mesh,
+                material,
+                ..default()
+            },));
         }
     });
 }

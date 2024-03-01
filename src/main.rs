@@ -5,34 +5,21 @@ mod utils;
 
 mod flycam;
 
-use std::{
-    f32::consts::PI,
-    fs,
-    path::{Path, PathBuf},
-    sync::Mutex,
-};
+use std::{f32::consts::PI, path::PathBuf, sync::Mutex};
 
 use anyhow::bail;
-use assets::{CustomAssetIoPlugin, Txd};
+use assets::{GTAAssetReader, Txd, TxdLoader};
 use bevy::{
-    asset::AssetIo,
+    asset::io::{AssetSource, AssetSourceId},
     log::LogPlugin,
     prelude::{shape::Quad, *},
-    render::render_resource::{Extent3d, PrimitiveTopology, TextureDimension, TextureFormat},
+    render::render_resource::PrimitiveTopology,
 };
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use dat::{GameData, Ide};
 use flycam::*;
-use rw_rs::{
-    bsf::{
-        tex::{RasterFormat, RpMaterial, RpRasterPalette},
-        *,
-    },
-    img::Img,
-};
-
-use nom_derive::Parse;
+use rw_rs::{bsf::*, img::Img};
 
 use lazy_static::lazy_static;
 use utils::to_xzy;
@@ -49,6 +36,10 @@ fn main() -> anyhow::Result<()> {
         );
     }
     App::new()
+        .register_asset_source(
+            AssetSourceId::default(),
+            AssetSource::build().with_reader(|| Box::new(GTAAssetReader)),
+        )
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -59,11 +50,12 @@ fn main() -> anyhow::Result<()> {
                     ..default()
                 })
                 .set(LogPlugin {
-                    filter: "info,wgpu_core=warn,wgpu_hal=warn,gtc=debug".into(),
+                    filter: "info,wgpu_core=warn,wgpu_hal=warn,gtc=info".into(),
                     level: bevy::log::Level::DEBUG,
-                })
-                .add_before::<bevy::asset::AssetPlugin, _>(CustomAssetIoPlugin),
+                }),
         )
+        .register_asset_loader(TxdLoader)
+        .init_asset::<Txd>()
         .add_plugins((NoCameraPlayerPlugin, WorldInspectorPlugin::new()))
         .add_systems(Startup, setup)
         .insert_resource(GameData {
@@ -172,8 +164,9 @@ fn load_meshes(
                                 &tex_chunk.get_children()[0].content
                             {
                                 let tex_path = format!("{txd_name}.txd#{tex_name}");
-                                warn!("Loading {}", tex_path);
-                                let tex = server.load(tex_path);
+                                debug!("Loading {}", tex_path);
+                                let tex: Handle<Image> = server.load(tex_path);
+
                                 //TODO set sampler properties
                                 tex_handle = Some(tex);
                             }
@@ -207,48 +200,39 @@ fn setup(
     txds: Res<Assets<Txd>>,
     asset_server: Res<AssetServer>,
 ) {
-    let splash: Handle<Image> = asset_server.load("dyntraffic.txd#towaway");
-
-    let tl = IMG.lock().unwrap().get_file("trafficlight1.dff").unwrap();
-    let (_, tl) = Chunk::parse(&tl).unwrap();
-    let meshes_vec = load_meshes(&tl, "dyntraffic", &asset_server)
-        .into_iter()
-        .last()
-        .unwrap()
-        .into_iter()
-        .map(|(m, mat)| (meshes.add(m), materials.add(mat)))
-        .collect::<Vec<_>>();
-
     let camera_and_light_transform =
         Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
-    let mut ent = commands.spawn(SpatialBundle {
-        transform: Transform::from_xyz(0.0, 290.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..Default::default()
-    });
-    ent.with_children(|parent| {
-        for (mesh, material) in meshes_vec {
-            parent.spawn((PbrBundle {
-                mesh,
-                material,
-                ..default()
-            },));
-        }
-    });
+    // Compile-time switch between loading single object and entire city
+    if true {
+        file_data
+            .load_dat(&mut commands, &mut meshes, &mut materials, asset_server)
+            .expect("Error loading gta3.dat");
+    } else {
+        let tl = IMG.lock().unwrap().get_file("trafficlight1.dff").unwrap();
+        let (_, tl) = Chunk::parse(&tl).unwrap();
+        let meshes_vec = load_meshes(&tl, "dyntraffic", &asset_server)
+            .into_iter()
+            .last()
+            .unwrap()
+            .into_iter()
+            .map(|(m, mat)| (meshes.add(m), materials.add(mat)))
+            .collect::<Vec<_>>();
 
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(Quad::new([2.0, 1.0].into()))),
-        material: materials.add(StandardMaterial {
-            base_color_texture: Some(splash),
+        let mut ent = commands.spawn(SpatialBundle {
+            transform: Transform::from_xyz(0.0, 290.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
             ..Default::default()
-        }),
-        transform: camera_and_light_transform,
-        ..default()
-    });
-
-    //file_data
-    //    .load_dat(&mut commands, &mut meshes, &mut materials, asset_server)
-    //    .expect("Error loading gta3.dat");
+        });
+        ent.with_children(|parent| {
+            for (mesh, material) in meshes_vec {
+                parent.spawn((PbrBundle {
+                    mesh,
+                    material,
+                    ..default()
+                },));
+            }
+        });
+    }
 
     // Camera in 3D space.
     commands.spawn((

@@ -1,15 +1,9 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::collections::HashMap;
 
 use anyhow::anyhow;
 use bevy::prelude::*;
-use rw_rs::{bsf::Chunk, img::Img};
 
 use crate::{
-    load_meshes,
     objects::spawn_obj,
     to_xzy,
     utils::{get_path, to_path},
@@ -32,7 +26,6 @@ impl GameData {
         let dat = std::fs::read_to_string(DATA_DIR.join("data/gta3.dat"))?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
         for line in lines {
-            let line = line;
             let words = line
                 .split_whitespace()
                 .take_while(|s| !s.contains('#'))
@@ -205,7 +198,7 @@ impl GameData {
                         self,
                         meshes,
                         materials,
-                        &server,
+                        server,
                         commands,
                     );
                 }

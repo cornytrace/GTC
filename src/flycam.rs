@@ -1,4 +1,4 @@
-use bevy::ecs::event::{Events, ManualEventReader};
+use bevy::ecs::event::ManualEventReader;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
@@ -157,7 +157,7 @@ fn player_look(
 ) {
     if let Ok(window) = primary_window.get_single() {
         for mut transform in query.iter_mut() {
-            for ev in state.reader_motion.iter(&motion) {
+            for ev in state.reader_motion.read(&motion) {
                 let (mut yaw, mut pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
                 match window.cursor.grab_mode {
                     CursorGrabMode::None => (),

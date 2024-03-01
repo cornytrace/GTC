@@ -1,19 +1,20 @@
-use std::{
-    fs,
-    ops::Index,
-    path::{Path, PathBuf},
-};
+use std::{ops::Index, path::Path};
 
 use crate::{utils::get_path, IMG};
 use anyhow::Result;
+use async_fs::File;
 use bevy::{
-    asset::{AssetIo, AssetIoError, AssetLoader, LoadedAsset},
+    asset::{
+        io::{AssetReader, AssetReaderError, PathStream, Reader, VecReader},
+        AssetLoader, AsyncReadExt, LoadContext,
+    },
     prelude::*,
     reflect::TypeUuid,
     render::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
         texture::TextureFormatPixelInfo,
     },
+    utils::BoxedFuture,
 };
 use nom_derive::Parse;
 use num_traits::FromPrimitive;
@@ -23,13 +24,13 @@ use rw_rs::bsf::{
 };
 use thiserror::Error;
 
-pub struct GTAAssetIo;
+pub struct GTAAssetReader;
 
-impl AssetIo for GTAAssetIo {
-    fn load_path<'a>(
+impl AssetReader for GTAAssetReader {
+    fn read<'a>(
         &'a self,
         path: &'a std::path::Path,
-    ) -> bevy::utils::BoxedFuture<'a, Result<Vec<u8>, bevy::asset::AssetIoError>> {
+    ) -> BoxedFuture<'a, Result<Box<Reader<'a>>, AssetReaderError>> {
         if path.components().count() == 1
             && path
                 .extension()
@@ -42,80 +43,67 @@ impl AssetIo for GTAAssetIo {
                     .unwrap()
                     .get_file(path.to_string_lossy().as_ref())
                 {
-                    return Box::pin(async move { Ok(file.clone()) });
+                    return Box::pin(async move {
+                        let reader: Box<Reader> = Box::new(VecReader::new(file));
+                        Ok(reader)
+                    });
                 } else if path_ext.eq_ignore_ascii_case("dff") {
                     return Box::pin(async move {
                         let Some(path) = get_path(&Path::new("models").join(path)) else {
-                            return Err(AssetIoError::NotFound(path.to_path_buf()));
+                            return Err(AssetReaderError::NotFound(path.to_path_buf()));
                         };
-                        fs::read(path).map_err(AssetIoError::Io)
+                        let reader: Box<Reader> = Box::new(File::open(&path).await?);
+                        Ok(reader)
                     });
                 } else if path_ext.eq_ignore_ascii_case("txd") {
                     return Box::pin(async move {
                         let Some(path) = get_path(&Path::new("txd").join(path))
                             .or_else(|| get_path(&Path::new("models").join(path)))
                         else {
-                            return Err(AssetIoError::NotFound(path.to_path_buf()));
+                            return Err(AssetReaderError::NotFound(path.to_path_buf()));
                         };
-                        fs::read(path).map_err(AssetIoError::Io)
+                        let reader: Box<Reader> = Box::new(File::open(&path).await?);
+                        Ok(reader)
                     });
                 } else {
                     return Box::pin(async move {
                         let Some(path) = get_path(path) else {
-                            return Err(AssetIoError::NotFound(path.to_path_buf()));
+                            return Err(AssetReaderError::NotFound(path.to_path_buf()));
                         };
-                        fs::read(path).map_err(AssetIoError::Io)
+                        let reader: Box<Reader> = Box::new(File::open(&path).await?);
+                        Ok(reader)
                     });
                 }
             }
         }
         if let Some(path) = get_path(path) {
-            return Box::pin(async move { fs::read(path).map_err(AssetIoError::Io) });
+            return Box::pin(async move {
+                let reader: Box<Reader> = Box::new(File::open(&path).await?);
+                Ok(reader)
+            });
         }
-        Box::pin(async move { Err(AssetIoError::NotFound(path.to_path_buf())) })
+        Box::pin(async move { Err(AssetReaderError::NotFound(path.to_path_buf())) })
     }
 
-    fn read_directory(
-        &self,
-        _path: &std::path::Path,
-    ) -> Result<Box<dyn Iterator<Item = PathBuf>>, bevy::asset::AssetIoError> {
-        todo!()
+    fn read_meta<'a>(
+        &'a self,
+        path: &'a std::path::Path,
+    ) -> BoxedFuture<'a, Result<Box<Reader<'a>>, AssetReaderError>> {
+        Box::pin(async move { Err(AssetReaderError::NotFound(path.to_path_buf())) })
     }
 
-    fn get_metadata(
-        &self,
-        _path: &std::path::Path,
-    ) -> Result<bevy::asset::Metadata, bevy::asset::AssetIoError> {
-        todo!()
+    fn read_directory<'a>(
+        &'a self,
+        _path: &'a std::path::Path,
+    ) -> BoxedFuture<'a, Result<Box<PathStream>, AssetReaderError>> {
+        todo!("read_directory")
     }
 
-    fn watch_path_for_changes(
-        &self,
-        _to_watch: &std::path::Path,
-        _to_reload: Option<PathBuf>,
-    ) -> Result<(), bevy::asset::AssetIoError> {
-        warn!("watch_path_for_changes not yet implemented");
-        Ok(())
-    }
-
-    fn watch_for_changes(
-        &self,
-        _configuration: &bevy::asset::ChangeWatcher,
-    ) -> Result<(), bevy::asset::AssetIoError> {
-        unimplemented!()
-    }
-}
-
-pub struct CustomAssetIoPlugin;
-
-impl Plugin for CustomAssetIoPlugin {
-    fn build(&self, app: &mut App) {
-        // create the custom asset io instance
-        let asset_io = GTAAssetIo;
-
-        // the asset server is constructed and added the resource manager
-        app.insert_resource(AssetServer::new(asset_io));
-        app.add_asset::<Txd>().init_asset_loader::<TxdLoader>();
+    fn is_directory<'a>(
+        &'a self,
+        _path: &'a Path,
+    ) -> BoxedFuture<'a, std::prelude::v1::Result<bool, AssetReaderError>> {
+        todo!("is_directory")
     }
 }
 
@@ -125,18 +113,29 @@ pub struct TxdLoader;
 impl AssetLoader for TxdLoader {
     fn load<'a>(
         &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut bevy::asset::LoadContext,
-    ) -> bevy::utils::BoxedFuture<'a, Result<()>> {
-        Box::pin(async move { Ok(load_textures(bytes, load_context).await?) })
+        reader: &'a mut Reader,
+        _settings: &'a Self::Settings,
+        load_context: &'a mut LoadContext,
+    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
+        Box::pin(async move {
+            let mut bytes = Vec::new();
+            let _ = reader.read_to_end(&mut bytes).await;
+            load_textures(&bytes, load_context).await
+        })
     }
 
     fn extensions(&self) -> &[&str] {
         &["txd"]
     }
+
+    type Asset = Txd;
+
+    type Settings = ();
+
+    type Error = TxdError;
 }
 
-#[derive(Reflect, Clone, TypeUuid, Debug, Default)]
+#[derive(Asset, Reflect, Clone, TypeUuid, Debug, Default)]
 #[uuid = "e23c54a5-4a4a-490c-97d8-5f31fdd79a1a"]
 pub struct Txd(pub Vec<Handle<Image>>);
 
@@ -157,7 +156,7 @@ pub enum TxdError {
 async fn load_textures<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut bevy::asset::LoadContext<'b>,
-) -> Result<(), TxdError> {
+) -> Result<Txd, TxdError> {
     let Ok((_, bsf)) = Chunk::parse(bytes) else {
         return Err(TxdError::InvalidTxd);
     };
@@ -207,8 +206,8 @@ async fn load_textures<'a, 'b>(
                 & !(RasterFormat::FormatExtMipmap as u32);
             let raster_format = RasterFormat::from_u32(raster_format).unwrap();
             let format = match raster_format {
-                RasterFormat::Format8888 => TextureFormat::Bgra8Unorm,
-                RasterFormat::Format888 => TextureFormat::Bgra8Unorm,
+                RasterFormat::Format8888 => TextureFormat::Bgra8UnormSrgb,
+                RasterFormat::Format888 => TextureFormat::Bgra8UnormSrgb,
                 _ => unimplemented!(),
             };
             let image = Image::new(
@@ -222,15 +221,11 @@ async fn load_textures<'a, 'b>(
                     .to_vec(),
                 format,
             );
-
-            let asset = LoadedAsset::new(image);
-            texture_vec.push(load_context.set_labeled_asset(&raster.name, asset));
+            texture_vec.push(load_context.labeled_asset_scope(raster.name.clone(), |_lc| image));
         } else if !matches!(raster.content, ChunkContent::Extension) {
             error!("Unexpected type {:?} found in TXD file", raster.content);
             continue;
         }
     }
-
-    load_context.set_default_asset(LoadedAsset::new(Txd(texture_vec)));
-    Ok(())
+    Ok(Txd(texture_vec))
 }
