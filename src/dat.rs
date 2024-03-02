@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use bevy::prelude::*;
 
 use crate::{
+    material::GTAMaterial,
     objects::spawn_obj,
     to_xzy,
     utils::{get_path, to_path},
@@ -20,7 +21,7 @@ impl GameData {
         &mut self,
         commands: &mut Commands,
         meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<StandardMaterial>>,
+        materials: &mut ResMut<Assets<GTAMaterial>>,
         server: Res<AssetServer>,
     ) -> anyhow::Result<()> {
         let dat = std::fs::read_to_string(DATA_DIR.join("data/gta3.dat"))?;
@@ -53,7 +54,7 @@ impl GameData {
         path: &str,
         commands: &mut Commands,
         meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<StandardMaterial>>,
+        materials: &mut ResMut<Assets<GTAMaterial>>,
         server: &Res<AssetServer>,
     ) -> anyhow::Result<()> {
         let path = get_path(&to_path(path)).ok_or(anyhow!("{} not found!", path))?;

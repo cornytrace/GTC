@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rw_rs::bsf::Chunk;
 
-use crate::{dat::GameData, load_meshes, IMG};
+use crate::{dat::GameData, material::GTAMaterial, mesh::load_dff, IMG};
 
 pub fn spawn_obj(
     id: u32,
@@ -11,7 +11,7 @@ pub fn spawn_obj(
     rot: Quat,
     data: &mut GameData,
     meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    materials: &mut ResMut<Assets<GTAMaterial>>,
     server: &Res<AssetServer>,
     commands: &mut Commands,
 ) {
@@ -27,7 +27,7 @@ pub fn spawn_obj(
         .get_file(name)
         .unwrap_or_else(|| panic!("{} not found in img", name));
     let (_, bsf) = Chunk::parse(&file).unwrap();
-    let meshes_vec = load_meshes(&bsf, &ide.txd_name, server)
+    let meshes_vec = load_dff(&bsf, &ide.txd_name, server)
         .into_iter()
         .last()
         .unwrap_or_default()
@@ -50,7 +50,7 @@ pub fn spawn_obj(
     });
     ent.with_children(|parent| {
         for (mesh, material) in meshes_vec {
-            parent.spawn((PbrBundle {
+            parent.spawn((MaterialMeshBundle::<GTAMaterial> {
                 mesh,
                 material,
                 ..default()
