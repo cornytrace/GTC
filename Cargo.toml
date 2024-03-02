@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.72"
 async-fs = "2.1.1"
-bevy-inspector-egui = "0.22.0"
+bevy-inspector-egui = "0.23.0"
 lazy_static = "1.4.0"
 nom-derive = "0.10.1"
 num-traits = "0.2.16"
@@ -16,7 +16,7 @@ rw-rs = { path = "../rw-rs" }
 thiserror = "1.0.48"
 
 [dependencies.bevy]
-version = "0.12.0"
+version = "0.13.0"
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]

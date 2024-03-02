@@ -11,9 +11,10 @@ use anyhow::bail;
 use assets::{GTAAssetReader, Txd, TxdLoader};
 use bevy::{
     asset::io::{AssetSource, AssetSourceId},
+    audio::AudioPlugin,
     log::LogPlugin,
-    prelude::{shape::Quad, *},
-    render::render_resource::PrimitiveTopology,
+    prelude::*,
+    render::{render_asset::RenderAssetUsages, render_resource::PrimitiveTopology},
 };
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
@@ -52,7 +53,9 @@ fn main() -> anyhow::Result<()> {
                 .set(LogPlugin {
                     filter: "info,wgpu_core=warn,wgpu_hal=warn,gtc=info".into(),
                     level: bevy::log::Level::DEBUG,
-                }),
+                    ..Default::default()
+                })
+                .disable::<AudioPlugin>(),
         )
         .register_asset_loader(TxdLoader)
         .init_asset::<Txd>()
@@ -70,6 +73,7 @@ fn load_meshes(
     bsf: &Chunk,
     txd_name: &str,
     server: &Res<AssetServer>,
+    //images: &ResMut<Assets<Image>>,
 ) -> Vec<Vec<(Mesh, StandardMaterial)>> {
     let mut res = Vec::new();
     for geometry_chunk in &bsf
@@ -137,7 +141,7 @@ fn load_meshes(
                     };
 
                     // Mesh
-                    let mut mesh = Mesh::new(topo);
+                    let mut mesh = Mesh::new(topo, RenderAssetUsages::default());
 
                     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices.clone());
 
@@ -154,7 +158,7 @@ fn load_meshes(
                         .flat_map(|t| t.as_arr())
                         .collect::<Vec<_>>();
 
-                    mesh.set_indices(Some(bevy::render::mesh::Indices::U16(triangles)));
+                    mesh.insert_indices(bevy::render::mesh::Indices::U16(triangles));
 
                     // Material
                     let mut tex_handle: Option<Handle<Image>> = None;
@@ -166,8 +170,6 @@ fn load_meshes(
                                 let tex_path = format!("{txd_name}.txd#{tex_name}");
                                 debug!("Loading {}", tex_path);
                                 let tex: Handle<Image> = server.load(tex_path);
-
-                                //TODO set sampler properties
                                 tex_handle = Some(tex);
                             }
                         }
@@ -203,7 +205,7 @@ fn setup(
     let camera_and_light_transform =
         Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
-    // Compile-time switch between loading single object and entire city
+    // Compile-time  switch between loading single object and entire city
     if true {
         file_data
             .load_dat(&mut commands, &mut meshes, &mut materials, asset_server)

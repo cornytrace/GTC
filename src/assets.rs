@@ -9,8 +9,8 @@ use bevy::{
         AssetLoader, AsyncReadExt, LoadContext,
     },
     prelude::*,
-    reflect::TypeUuid,
     render::{
+        render_asset::RenderAssetUsages,
         render_resource::{Extent3d, TextureDimension, TextureFormat},
         texture::TextureFormatPixelInfo,
     },
@@ -26,6 +26,7 @@ use thiserror::Error;
 
 pub struct GTAAssetReader;
 
+// This exposes the files in gta3.img as files in a VFS
 impl AssetReader for GTAAssetReader {
     fn read<'a>(
         &'a self,
@@ -120,7 +121,83 @@ impl AssetLoader for TxdLoader {
         Box::pin(async move {
             let mut bytes = Vec::new();
             let _ = reader.read_to_end(&mut bytes).await;
-            load_textures(&bytes, load_context).await
+            let Ok((_, bsf)) = Chunk::parse(&bytes) else {
+                return Err(TxdError::InvalidTxd);
+            };
+            if !matches!(bsf.content, ChunkContent::TextureDictionary) {
+                return Err(TxdError::InvalidTxd);
+            }
+
+            let mut texture_vec = Vec::new();
+
+            for raster in &bsf.get_children()[1..] {
+                if let ChunkContent::Raster(raster) = &raster.content {
+                    let mut data: Vec<u8> = Vec::new();
+                    if (raster.raster_format & (RasterFormat::FormatExtPal8 as u32)) != 0 {
+                        let (indices, palette) =
+                            RpRasterPalette::<256>::parse(&raster.data).unwrap();
+                        let indices = &indices[4..];
+                        for h in 0..(raster.height as usize) {
+                            for w in 0..(raster.width as usize) {
+                                let index = indices[w + (h * (raster.width as usize))];
+                                let color = palette.0[index as usize];
+                                data.push(color.b);
+                                data.push(color.g);
+                                data.push(color.r);
+                                data.push(color.a);
+                            }
+                        }
+                    } else if (raster.raster_format & (RasterFormat::FormatExtPal4 as u32)) != 0 {
+                        let (indices, palette) =
+                            RpRasterPalette::<32>::parse(&raster.data).unwrap();
+                        let indices = &indices[4..];
+                        for h in 0..(raster.height as usize) {
+                            for w in 0..(raster.width as usize) {
+                                let index = indices[w + (h * (raster.width as usize))];
+                                let color = palette.0[index as usize];
+                                data.push(color.b);
+                                data.push(color.g);
+                                data.push(color.r);
+                                data.push(color.a);
+                            }
+                        }
+                    } else {
+                        data = raster.data[4..].to_vec();
+                    }
+
+                    let raster_format = raster.raster_format
+                        & !(RasterFormat::FormatExtAutoMipmap as u32)
+                        & !(RasterFormat::FormatExtPal4 as u32)
+                        & !(RasterFormat::FormatExtPal8 as u32)
+                        & !(RasterFormat::FormatExtMipmap as u32);
+                    let raster_format = RasterFormat::from_u32(raster_format).unwrap();
+                    let format = match raster_format {
+                        RasterFormat::Format8888 => TextureFormat::Bgra8UnormSrgb,
+                        RasterFormat::Format888 => TextureFormat::Bgra8UnormSrgb,
+                        _ => unimplemented!(),
+                    };
+                    let mut image = Image::new(
+                        Extent3d {
+                            width: raster.width.into(),
+                            height: raster.height.into(),
+                            depth_or_array_layers: 1,
+                        },
+                        TextureDimension::D2,
+                        data[0..raster.width as usize
+                            * raster.height as usize
+                            * format.pixel_size()]
+                            .to_vec(),
+                        format,
+                        RenderAssetUsages::default(),
+                    );
+                    texture_vec
+                        .push(load_context.labeled_asset_scope(raster.name.clone(), |_lc| image));
+                } else if !matches!(raster.content, ChunkContent::Extension) {
+                    error!("Unexpected type {:?} found in TXD file", raster.content);
+                    continue;
+                }
+            }
+            Ok(Txd(texture_vec))
         })
     }
 
@@ -135,8 +212,7 @@ impl AssetLoader for TxdLoader {
     type Error = TxdError;
 }
 
-#[derive(Asset, Reflect, Clone, TypeUuid, Debug, Default)]
-#[uuid = "e23c54a5-4a4a-490c-97d8-5f31fdd79a1a"]
+#[derive(Asset, Reflect, Clone, Debug, Default)]
 pub struct Txd(pub Vec<Handle<Image>>);
 
 impl Index<usize> for Txd {
@@ -151,81 +227,4 @@ impl Index<usize> for Txd {
 pub enum TxdError {
     #[error("invalid TXD file")]
     InvalidTxd,
-}
-
-async fn load_textures<'a, 'b>(
-    bytes: &'a [u8],
-    load_context: &'a mut bevy::asset::LoadContext<'b>,
-) -> Result<Txd, TxdError> {
-    let Ok((_, bsf)) = Chunk::parse(bytes) else {
-        return Err(TxdError::InvalidTxd);
-    };
-    if !matches!(bsf.content, ChunkContent::TextureDictionary) {
-        return Err(TxdError::InvalidTxd);
-    }
-
-    let mut texture_vec = Vec::new();
-
-    for raster in &bsf.get_children()[1..] {
-        if let ChunkContent::Raster(raster) = &raster.content {
-            let mut data: Vec<u8> = Vec::new();
-            if (raster.raster_format & (RasterFormat::FormatExtPal8 as u32)) != 0 {
-                let (indices, palette) = RpRasterPalette::<256>::parse(&raster.data).unwrap();
-                let indices = &indices[4..];
-                for h in 0..(raster.height as usize) {
-                    for w in 0..(raster.width as usize) {
-                        let index = indices[w + (h * (raster.width as usize))];
-                        let color = palette.0[index as usize];
-                        data.push(color.b);
-                        data.push(color.g);
-                        data.push(color.r);
-                        data.push(color.a);
-                    }
-                }
-            } else if (raster.raster_format & (RasterFormat::FormatExtPal4 as u32)) != 0 {
-                let (indices, palette) = RpRasterPalette::<32>::parse(&raster.data).unwrap();
-                let indices = &indices[4..];
-                for h in 0..(raster.height as usize) {
-                    for w in 0..(raster.width as usize) {
-                        let index = indices[w + (h * (raster.width as usize))];
-                        let color = palette.0[index as usize];
-                        data.push(color.b);
-                        data.push(color.g);
-                        data.push(color.r);
-                        data.push(color.a);
-                    }
-                }
-            } else {
-                data = raster.data[4..].to_vec();
-            }
-
-            let raster_format = raster.raster_format
-                & !(RasterFormat::FormatExtAutoMipmap as u32)
-                & !(RasterFormat::FormatExtPal4 as u32)
-                & !(RasterFormat::FormatExtPal8 as u32)
-                & !(RasterFormat::FormatExtMipmap as u32);
-            let raster_format = RasterFormat::from_u32(raster_format).unwrap();
-            let format = match raster_format {
-                RasterFormat::Format8888 => TextureFormat::Bgra8UnormSrgb,
-                RasterFormat::Format888 => TextureFormat::Bgra8UnormSrgb,
-                _ => unimplemented!(),
-            };
-            let image = Image::new(
-                Extent3d {
-                    width: raster.width.into(),
-                    height: raster.height.into(),
-                    depth_or_array_layers: 1,
-                },
-                TextureDimension::D2,
-                data[0..raster.width as usize * raster.height as usize * format.pixel_size()]
-                    .to_vec(),
-                format,
-            );
-            texture_vec.push(load_context.labeled_asset_scope(raster.name.clone(), |_lc| image));
-        } else if !matches!(raster.content, ChunkContent::Extension) {
-            error!("Unexpected type {:?} found in TXD file", raster.content);
-            continue;
-        }
-    }
-    Ok(Txd(texture_vec))
 }
