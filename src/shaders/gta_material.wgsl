@@ -18,7 +18,9 @@ fn fragment(
     diffuse *= mesh.color;
     #endif
 
+    #ifdef VERTEX_UVS
     diffuse *= textureSample(material_color_texture, material_color_sampler, mesh.uv);
+    #endif
 
     return diffuse;
 }
