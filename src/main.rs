@@ -132,7 +132,7 @@ fn setup(
     ));
 
     // ambient light
-    commands.insert_resource(AmbientLight {
+    /*commands.insert_resource(AmbientLight {
         color: Color::ORANGE_RED,
         brightness: 0.02,
     });
@@ -149,5 +149,5 @@ fn setup(
             ..default()
         },
         ..default()
-    });
+    });*/
 }
