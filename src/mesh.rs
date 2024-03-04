@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use bevy::{
     prelude::*,
     render::{
@@ -8,7 +10,11 @@ use bevy::{
 };
 use rw_rs::bsf::{tex::TextureAddressingMode, Chunk, ChunkContent};
 
-use crate::{material::GTAMaterial, utils::to_xzy};
+use crate::{assets::Txd, material::GTAMaterial, utils::to_xzy};
+
+//TEMP: try to work around issue bevy#10820
+static IMG_VEC: Mutex<Vec<Handle<Image>>> = Mutex::new(Vec::new());
+static TXD_VEC: Mutex<Vec<Handle<Txd>>> = Mutex::new(Vec::new());
 
 pub fn load_dff(
     bsf: &Chunk,
@@ -16,6 +22,11 @@ pub fn load_dff(
     server: &Res<AssetServer>,
     //images: &ResMut<Assets<Image>>,
 ) -> Vec<Vec<(Mesh, GTAMaterial)>> {
+    TXD_VEC
+        .lock()
+        .unwrap()
+        .push(server.load(format!("{txd_name}.txd")));
+
     let mut res = Vec::new();
     for geometry_chunk in &bsf
         .get_children()
@@ -121,6 +132,7 @@ pub fn load_dff(
                                 debug!("Loading {}", tex_path);
 
                                 let tex_img: Handle<Image> = server.load(tex_path);
+                                IMG_VEC.lock().unwrap().push(tex_img.clone());
                                 tex_handle = Some(tex_img);
 
                                 sampler.address_mode_u = match tex.addressing[0] {
