@@ -165,7 +165,7 @@ impl GameData {
 
                 // IPL
                 "inst" => {
-                    if words[1].starts_with("LOD") {
+                    if words[1].contains("LOD") {
                         continue;
                     }
                     let name = format!("{}.dff", words[1]);
