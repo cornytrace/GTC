@@ -19,6 +19,7 @@ use bevy::{
     audio::AudioPlugin,
     log::LogPlugin,
     prelude::*,
+    render::texture::{ImageAddressMode, ImageSamplerDescriptor},
 };
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
@@ -60,6 +61,13 @@ fn main() -> anyhow::Result<()> {
                 filter: "info,wgpu_core=warn,wgpu_hal=warn,gtc=info".into(),
                 level: bevy::log::Level::DEBUG,
                 ..Default::default()
+            })
+            .set(ImagePlugin {
+                default_sampler: ImageSamplerDescriptor {
+                    address_mode_u: ImageAddressMode::Repeat,
+                    address_mode_v: ImageAddressMode::Repeat,
+                    ..Default::default()
+                },
             })
             .disable::<AudioPlugin>(),
     )
