@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{collections::HashSet, sync::Mutex};
 
 use bevy::{
     prelude::*,
@@ -55,7 +55,7 @@ pub fn load_dff(
                 .map(|t| Vec3::from(to_xzy(t.as_arr())))
                 .collect::<Vec<_>>();
 
-            if normals.is_empty() {
+            /*if normals.is_empty() {
                 normals = vec![Vec3::ZERO; vertices.len()];
                 for t in &geo.triangles {
                     let v1: Vec3 = vertices[t.vertex1 as usize].into();
@@ -69,7 +69,7 @@ pub fn load_dff(
                     normals[t.vertex3 as usize] += normal;
                 }
                 normals = normals.into_iter().map(|n| n.normalize()).collect();
-            }
+            }*/
 
             let tex_coords = geo
                 .tex_coords
@@ -91,34 +91,68 @@ pub fn load_dff(
                 .find(|c| matches!(c.content, ChunkContent::MaterialList(_)))
                 .expect("geometry needs material list");
             if let ChunkContent::MaterialList(list) = &mat_list.content {
-                for (i, mat_chunk) in mat_list.get_children().iter().enumerate() {
+                // Because Bevy only allows one Material per Mesh, we need to split the mesh
+                for (mat_num, mat_chunk) in mat_list.get_children().iter().enumerate() {
                     let ChunkContent::Material(mat) = mat_chunk.content else {
+                        error!("invalid material {mat_num} for ")
                         continue;
                     };
 
                     // Mesh
                     let mut mesh = Mesh::new(topo, RenderAssetUsages::default());
 
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices.clone());
-
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals.clone());
-
-                    if geo.tex_coords.len() == 1 {
-                        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, tex_coords.clone());
-                    }
-
-                    if !prelit.is_empty() {
-                        mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, prelit.clone());
-                    }
-
-                    let triangles = geo
+                    let mut used_triangles = geo
                         .triangles
                         .iter()
-                        .filter(|t| list.get_index(t.material_id.into()) as usize == i)
+                        .filter(|t| list.get_index(t.material_id.into()) as usize == mat_num)
                         .flat_map(|t| t.as_arr())
                         .collect::<Vec<_>>();
 
-                    mesh.insert_indices(bevy::render::mesh::Indices::U16(triangles));
+                    let mut used_vertices = vertices.clone();
+                    let mut used_normals = normals.clone();
+                    let mut used_tex_coords = tex_coords.clone();
+                    let mut used_prelit = prelit.clone();
+
+                    {
+                        let mut i = 0;
+                        while i < used_vertices.len() {
+                            if used_triangles.contains(&(i as u16)) {
+                                i += 1;
+                            } else {
+                                used_vertices.remove(i);
+                                if !normals.is_empty() {
+                                    used_normals.remove(i);
+                                }
+                                if !tex_coords.is_empty() {
+                                    used_tex_coords.remove(i);
+                                }
+                                if !prelit.is_empty() {
+                                    used_prelit.remove(i);
+                                }
+                                for triangle in &mut used_triangles {
+                                    if (*triangle as usize) > i {
+                                        *triangle -= 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, used_vertices);
+
+                    if !normals.is_empty() {
+                        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, used_normals);
+                    }
+
+                    if geo.tex_coords.len() == 1 {
+                        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, used_tex_coords);
+                    }
+
+                    if !prelit.is_empty() {
+                        mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, used_prelit);
+                    }
+
+                    mesh.insert_indices(bevy::render::mesh::Indices::U16(used_triangles));
 
                     // Material
                     let mut tex_handle: Option<Handle<Image>> = None;
