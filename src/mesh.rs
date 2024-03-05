@@ -94,7 +94,6 @@ pub fn load_dff(
                 // Because Bevy only allows one Material per Mesh, we need to split the mesh
                 for (mat_num, mat_chunk) in mat_list.get_children().iter().enumerate() {
                     let ChunkContent::Material(mat) = mat_chunk.content else {
-                        error!("invalid material {mat_num} for ")
                         continue;
                     };
 
@@ -225,8 +224,8 @@ pub fn load_dff(
                         texture: tex_handle,
                         sampler,
                         ambient_fac: surf_prop.ambient,
-                        //specular: surf_prop.specular,
                         diffuse_fac: surf_prop.diffuse,
+                        ambient_light: default(),
                     };
 
                     mesh_mat_vec.push((mesh, mat))

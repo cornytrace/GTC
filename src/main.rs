@@ -7,15 +7,12 @@ mod utils;
 
 mod flycam;
 
-use std::{f32::consts::PI, path::PathBuf, sync::Mutex};
+use std::{path::PathBuf, sync::Mutex};
 
 use anyhow::bail;
 use assets::{GTAAssetReader, Txd, TxdLoader};
 use bevy::{
-    asset::{
-        embedded_asset,
-        io::{AssetSource, AssetSourceId},
-    },
+    asset::io::{AssetSource, AssetSourceId},
     audio::AudioPlugin,
     log::LogPlugin,
     prelude::*,
@@ -25,7 +22,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use dat::{GameData, Ide};
 use flycam::*;
-use material::GTAMaterial;
+use material::{GTAMaterial, GTAMaterialPlugin};
 use mesh::load_dff;
 use rw_rs::{bsf::*, img::Img};
 
@@ -73,14 +70,12 @@ fn main() -> anyhow::Result<()> {
     )
     .register_asset_loader(TxdLoader)
     .init_asset::<Txd>()
-    .add_plugins(MaterialPlugin::<GTAMaterial>::default())
+    .add_plugins(GTAMaterialPlugin)
     .add_plugins((NoCameraPlayerPlugin, WorldInspectorPlugin::new()))
     .add_systems(Startup, setup)
     .insert_resource(GameData {
         ide: Ide::default(),
     });
-
-    embedded_asset!(app, "shaders/gta_material.wgsl");
 
     app.run();
 

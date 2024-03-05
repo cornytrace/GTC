@@ -17,6 +17,7 @@ thiserror = "1.0.48"
 
 [dependencies.bevy]
 version = "0.13.0"
+features = ["file_watcher", "embedded_watcher"]
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]

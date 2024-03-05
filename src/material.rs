@@ -1,8 +1,9 @@
 use bevy::{
+    asset::embedded_asset,
     prelude::*,
     render::{
         render_resource::{AsBindGroup, ShaderRef},
-        texture::{ImageSampler, ImageSamplerDescriptor},
+        texture::ImageSamplerDescriptor,
     },
 };
 
@@ -19,10 +20,43 @@ pub struct GTAMaterial {
     pub ambient_fac: f32,
     #[uniform(4)]
     pub diffuse_fac: f32,
+
+    //TODO: should be global, not instance specific
+    #[uniform(5)]
+    pub ambient_light: Color,
 }
 
 impl Material for GTAMaterial {
+    fn vertex_shader() -> ShaderRef {
+        "embedded://gtc/shaders/gta_material.wgsl".into()
+    }
+
     fn fragment_shader() -> ShaderRef {
         "embedded://gtc/shaders/gta_material.wgsl".into()
+    }
+}
+
+fn update_ambient(light: Res<AmbientLight>, mut materials: ResMut<Assets<GTAMaterial>>) {
+    if !light.is_changed() {
+        return;
+    }
+
+    for (_, material) in materials.iter_mut() {
+        material.ambient_light = light.color;
+    }
+}
+
+pub struct GTAMaterialPlugin;
+
+impl Plugin for GTAMaterialPlugin {
+    fn build(&self, app: &mut App) {
+        embedded_asset!(app, "shaders/gta_material.wgsl");
+
+        app.add_plugins(MaterialPlugin::<GTAMaterial>::default())
+            .insert_resource(AmbientLight {
+                color: Color::rgb_u8(85, 85, 85),
+                brightness: 0.0,
+            })
+            .add_systems(Update, update_ambient);
     }
 }
