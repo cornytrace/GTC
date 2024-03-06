@@ -161,6 +161,7 @@ pub fn load_dff(
                             if let ChunkContent::String(tex_name) =
                                 &tex_chunk.get_children()[0].content
                             {
+                                let tex_name = tex_name.to_ascii_lowercase();
                                 let tex_path = format!("{txd_name}.txd#{tex_name}");
                                 debug!("Loading {}", tex_path);
 

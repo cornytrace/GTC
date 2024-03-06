@@ -187,8 +187,10 @@ impl AssetLoader for TxdLoader {
                         format,
                         RenderAssetUsages::default(),
                     );
-                    texture_vec
-                        .push(load_context.labeled_asset_scope(raster.name.clone(), |_lc| image));
+                    texture_vec.push(
+                        load_context
+                            .labeled_asset_scope(raster.name.to_ascii_lowercase(), |_lc| image),
+                    );
                 } else if !matches!(raster.content, ChunkContent::Extension) {
                     error!("Unexpected type {:?} found in TXD file", raster.content);
                     continue;
