@@ -183,10 +183,7 @@ impl AssetLoader for TxdLoader {
                             depth_or_array_layers: 1,
                         },
                         TextureDimension::D2,
-                        data[0..raster.width as usize
-                            * raster.height as usize
-                            * format.pixel_size()]
-                            .to_vec(),
+                        data,
                         format,
                         RenderAssetUsages::default(),
                     );

@@ -94,6 +94,15 @@ fn setup(
     let camera_and_light_transform =
         Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
+    // Camera in 3D space.
+    commands.spawn((
+        Camera3dBundle {
+            transform: camera_and_light_transform,
+            ..default()
+        },
+        FlyCam,
+    ));
+
     // Compile-time  switch between loading single object and entire city
     if true {
         file_data
@@ -124,15 +133,6 @@ fn setup(
             }
         });
     }
-
-    // Camera in 3D space.
-    commands.spawn((
-        Camera3dBundle {
-            transform: camera_and_light_transform,
-            ..default()
-        },
-        FlyCam,
-    ));
 
     // ambient light
     /*commands.insert_resource(AmbientLight {

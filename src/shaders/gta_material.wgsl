@@ -117,5 +117,9 @@ fn fragment(
     color *= textureSample(material_color_texture, material_color_sampler, mesh.uv);
     #endif
 
+    if color.a <= (1.0/255.0) {
+        discard;
+    }
+
     return color;
 }
