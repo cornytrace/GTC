@@ -5,16 +5,15 @@ use bevy::{
     render::{
         mesh::PrimitiveTopology,
         render_asset::RenderAssetUsages,
-        texture::{ImageAddressMode, ImageSamplerDescriptor},
+        texture::{ImageAddressMode, ImageFilterMode, ImageSamplerDescriptor},
     },
 };
-use rw_rs::bsf::{tex::TextureAddressingMode, Chunk, ChunkContent};
+use rw_rs::bsf::{
+    tex::{TextureAddressingMode, TextureFilteringMode},
+    Chunk, ChunkContent,
+};
 
 use crate::{assets::Txd, material::GTAMaterial, utils::to_xzy};
-
-//TEMP: try to work around issue bevy#10820
-static IMG_VEC: Mutex<Vec<Handle<Image>>> = Mutex::new(Vec::new());
-static TXD_VEC: Mutex<Vec<Handle<Txd>>> = Mutex::new(Vec::new());
 
 pub fn load_dff(
     bsf: &Chunk,
@@ -22,11 +21,6 @@ pub fn load_dff(
     server: &Res<AssetServer>,
     //images: &ResMut<Assets<Image>>,
 ) -> Vec<Vec<(Mesh, GTAMaterial)>> {
-    TXD_VEC
-        .lock()
-        .unwrap()
-        .push(server.load(format!("{txd_name}.txd")));
-
     let mut res = Vec::new();
     for geometry_chunk in &bsf
         .get_children()
@@ -166,7 +160,6 @@ pub fn load_dff(
                                 debug!("Loading {}", tex_path);
 
                                 let tex_img: Handle<Image> = server.load(tex_path);
-                                IMG_VEC.lock().unwrap().push(tex_img.clone());
                                 tex_handle = Some(tex_img);
 
                                 sampler.address_mode_u = match tex.addressing[0] {
@@ -205,13 +198,13 @@ pub fn load_dff(
                                 };
 
                                 /*let filter = match tex.filtering {
-                                    tex::TextureFilteringMode::FILTERNAFILTERMODE => todo!(),
-                                    tex::TextureFilteringMode::FILTERNEAREST => ImageFilterMode::Nearest,
-                                    tex::TextureFilteringMode::FILTERLINEAR => ImageFilterMode::Linear,
-                                    tex::TextureFilteringMode::FILTERMIPNEAREST => todo!(),
-                                    tex::TextureFilteringMode::FILTERMIPLINEAR => todo!(),
-                                    tex::TextureFilteringMode::FILTERLINEARMIPNEAREST => todo!(),
-                                    tex::TextureFilteringMode::FILTERLINEARMIPLINEAR => todo!(),
+                                    TextureFilteringMode::FILTERNAFILTERMODE => todo!(),
+                                    TextureFilteringMode::FILTERNEAREST => ImageFilterMode::Nearest,
+                                    TextureFilteringMode::FILTERLINEAR => ImageFilterMode::Linear,
+                                    TextureFilteringMode::FILTERMIPNEAREST => todo!(),
+                                    TextureFilteringMode::FILTERMIPLINEAR => todo!(),
+                                    TextureFilteringMode::FILTERLINEARMIPNEAREST => todo!(),
+                                    TextureFilteringMode::FILTERLINEARMIPLINEAR => todo!(),
                                 };*/
                             }
                         }
@@ -221,7 +214,7 @@ pub fn load_dff(
                     let surf_prop = geo.surface_prop.unwrap();
 
                     let mat = GTAMaterial {
-                        color: Color::rgba_from_array(mat.color.as_rgba_arr()),
+                        color: LinearRgba::from_f32_array(mat.color.as_rgba_arr()),
                         texture: tex_handle,
                         sampler,
                         ambient_fac: surf_prop.ambient,

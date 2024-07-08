@@ -10,7 +10,7 @@ use bevy::{
 #[derive(AsBindGroup, Debug, Clone, Asset, TypePath)]
 pub struct GTAMaterial {
     #[uniform(0)]
-    pub color: Color,
+    pub color: LinearRgba,
     #[texture(1)]
     #[sampler(2)] // TODO
     pub texture: Option<Handle<Image>>,
@@ -23,7 +23,7 @@ pub struct GTAMaterial {
 
     //TODO: should be global, not instance specific
     #[uniform(5)]
-    pub ambient_light: Color,
+    pub ambient_light: LinearRgba,
 }
 
 impl Material for GTAMaterial {
@@ -42,7 +42,7 @@ fn update_ambient(light: Res<AmbientLight>, mut materials: ResMut<Assets<GTAMate
     }
 
     for (_, material) in materials.iter_mut() {
-        material.ambient_light = light.color;
+        material.ambient_light = light.color.into();
     }
 }
 
