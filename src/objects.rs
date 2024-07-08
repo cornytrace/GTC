@@ -1,33 +1,49 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, render::view::VisibilityRange, utils::info};
 use rw_rs::bsf::Chunk;
 
 use crate::{dat::GameData, material::GTAMaterial, mesh::load_dff, IMG};
 
+#[derive(Event)]
+pub struct SpawnObject {
+    pub id: u32,
+    pub name: String,
+    pub pos: [f32; 3],
+    pub scale: [f32; 3],
+    pub rot: Quat,
+}
+
 pub fn spawn_obj(
-    id: u32,
-    name: &str,
-    pos: [f32; 3],
-    scale: [f32; 3],
-    rot: Quat,
-    data: &mut GameData,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<GTAMaterial>>,
-    server: &Res<AssetServer>,
-    commands: &mut Commands,
+    trigger: Trigger<SpawnObject>,
+    game_data: Res<GameData>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<GTAMaterial>>,
+    server: Res<AssetServer>,
+    mut commands: Commands,
 ) {
-    debug!("loading {}", name);
-    let ide = data
-        .ide
-        .get_by_id(id)
-        .expect("INST is not registered as IDE");
+    let data = trigger.event();
+    debug!("loading {}", data.name);
+
+    let Some(ide) = game_data.ide.get_by_id(data.id) else {
+        error!("tried to spawn IPL with invalid IDE id {0}", data.id);
+        return;
+    };
+
+    if ide.draw_distance[0] > 299.0 {
+        if !data.name.contains("LOD") {
+            warn!("skipping LOD with non-lod name {}", data.name);
+        } else {
+            info!("skipping LOD {}", data.name);
+        }
+        return;
+    }
 
     let file = IMG
         .lock()
         .unwrap()
-        .get_file(name)
-        .unwrap_or_else(|| panic!("{} not found in img", name));
+        .get_file(&format!("{}.dff", data.name))
+        .unwrap_or_else(|| panic!("{} not found in img", data.name));
     let (_, bsf) = Chunk::parse(&file).unwrap();
-    let meshes_vec = load_dff(&bsf, &ide.txd_name, server)
+    let meshes_vec = load_dff(&bsf, &ide.txd_name, &server)
         .into_iter()
         .last()
         .unwrap_or_default()
@@ -36,15 +52,15 @@ pub fn spawn_obj(
         .collect::<Vec<_>>();
 
     if meshes_vec.is_empty() {
-        warn!("{} contained zero meshes", name);
+        warn!("{} contained zero meshes", data.name);
         return;
     }
 
     let mut ent = commands.spawn(SpatialBundle {
         transform: Transform {
-            translation: pos.into(),
-            scale: scale.into(),
-            rotation: rot,
+            translation: data.pos.into(),
+            scale: data.scale.into(),
+            rotation: data.rot,
         },
         ..Default::default()
     });

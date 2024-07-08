@@ -24,21 +24,23 @@ use dat::{GameData, Ide};
 use flycam::*;
 use material::{GTAMaterial, GTAMaterialPlugin};
 use mesh::load_dff;
+use objects::spawn_obj;
 use rw_rs::{bsf::*, img::Img};
 
 use lazy_static::lazy_static;
 use utils::to_xzy;
 lazy_static! {
-    static ref DATA_DIR: PathBuf = PathBuf::from(std::env::var("GTA_DIR").unwrap_or(".".into()));
+    static ref GTA_DIR: PathBuf = PathBuf::from(std::env::var("GTA_DIR").unwrap_or(".".into()));
     static ref IMG: Mutex<Img<'static>> =
-        Mutex::new(Img::new(&DATA_DIR.join("models/gta3.img")).expect("gta3.img not found"));
+        Mutex::new(Img::new(&GTA_DIR.join("models/gta3.img")).expect("gta3.img not found"));
 }
 
-fn main() -> anyhow::Result<()> {
-    if !DATA_DIR.join("data/gta3.dat").exists() {
-        bail!(
+fn main() -> AppExit {
+    if !GTA_DIR.join("data/gta3.dat").exists() {
+        error!(
             "GTA files not found, set working directory or set the GTA_DIR environment variable."
         );
+        return AppExit::error();
     }
     let mut app = App::new();
     app.register_asset_source(
@@ -75,11 +77,10 @@ fn main() -> anyhow::Result<()> {
     .add_systems(Startup, setup)
     .insert_resource(GameData {
         ide: Ide::default(),
-    });
+    })
+    .observe(spawn_obj);
 
-    app.run();
-
-    Ok(())
+    app.run()
 }
 
 fn setup(

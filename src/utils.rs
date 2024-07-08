@@ -3,11 +3,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::DATA_DIR;
+use crate::GTA_DIR;
 
 // Case-insensitive path search from data_dir
 pub fn get_path(path: &Path) -> Option<PathBuf> {
-    let mut matched = DATA_DIR.to_owned();
+    let mut matched = GTA_DIR.to_owned();
     for elem in path.components() {
         let Ok(iter) = fs::read_dir(&matched) else {
             return None;

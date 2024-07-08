@@ -5,10 +5,10 @@ use bevy::prelude::*;
 
 use crate::{
     material::GTAMaterial,
-    objects::spawn_obj,
+    objects::{spawn_obj, SpawnObject},
     to_xzy,
     utils::{get_path, to_path},
-    DATA_DIR,
+    GTA_DIR,
 };
 
 #[derive(Resource)]
@@ -24,7 +24,7 @@ impl GameData {
         materials: &mut ResMut<Assets<GTAMaterial>>,
         server: Res<AssetServer>,
     ) -> anyhow::Result<()> {
-        let dat = std::fs::read_to_string(DATA_DIR.join("data/gta3.dat"))?;
+        let dat = std::fs::read_to_string(GTA_DIR.join("data/gta3.dat"))?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
         for line in lines {
             let words = line
@@ -165,10 +165,7 @@ impl GameData {
 
                 // IPL
                 "inst" => {
-                    if words[1].contains("LOD") {
-                        continue;
-                    }
-                    let name = format!("{}.dff", words[1]);
+                    let name = String::from(words[1]);
 
                     let pos = to_xzy([
                         words[2].parse::<f32>().unwrap(),
@@ -190,18 +187,13 @@ impl GameData {
                     ])
                     .normalize();
 
-                    spawn_obj(
-                        words[0].parse::<u32>().unwrap(),
-                        &name,
+                    commands.trigger(SpawnObject {
+                        id: words[0].parse::<u32>().unwrap(),
+                        name,
                         pos,
                         scale,
                         rot,
-                        self,
-                        meshes,
-                        materials,
-                        server,
-                        commands,
-                    );
+                    })
                 }
 
                 "zone" => {}
