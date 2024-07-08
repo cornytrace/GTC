@@ -9,7 +9,6 @@ mod flycam;
 
 use std::{path::PathBuf, sync::Mutex};
 
-use anyhow::bail;
 use assets::{GTAAssetReader, Txd, TxdLoader};
 use bevy::{
     asset::io::{AssetSource, AssetSourceId},
@@ -86,10 +85,8 @@ fn main() -> AppExit {
 fn setup(
     mut commands: Commands,
     mut file_data: ResMut<GameData>,
-    mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<GTAMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    txds: Res<Assets<Txd>>,
     asset_server: Res<AssetServer>,
 ) {
     let camera_and_light_transform =
@@ -107,7 +104,7 @@ fn setup(
     // Compile-time  switch between loading single object and entire city
     if true {
         file_data
-            .load_dat(&mut commands, &mut meshes, &mut materials, asset_server)
+            .load_dat(&mut commands)
             .expect("Error loading gta3.dat");
     } else {
         let tl = IMG.lock().unwrap().get_file("trafficlight1.dff").unwrap();

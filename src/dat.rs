@@ -4,8 +4,7 @@ use anyhow::anyhow;
 use bevy::prelude::*;
 
 use crate::{
-    material::GTAMaterial,
-    objects::{spawn_obj, SpawnObject},
+    objects::SpawnObject,
     to_xzy,
     utils::{get_path, to_path},
     GTA_DIR,
@@ -17,13 +16,7 @@ pub struct GameData {
 }
 
 impl GameData {
-    pub fn load_dat(
-        &mut self,
-        commands: &mut Commands,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<GTAMaterial>>,
-        server: Res<AssetServer>,
-    ) -> anyhow::Result<()> {
+    pub fn load_dat(&mut self, commands: &mut Commands) -> anyhow::Result<()> {
         let dat = std::fs::read_to_string(GTA_DIR.join("data/gta3.dat"))?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
         for line in lines {
@@ -37,9 +30,7 @@ impl GameData {
 
             let ty = words[0].to_lowercase();
             match ty.as_str() {
-                "ide" | "mapzone" | "ipl" => {
-                    self.load_def(ty.as_str(), words[1], commands, meshes, materials, &server)?
-                }
+                "ide" | "mapzone" | "ipl" => self.load_def(ty.as_str(), words[1], commands)?,
                 "splash" => {}
                 "colfile" => {}
                 _ => todo!(),
@@ -53,9 +44,6 @@ impl GameData {
         ty: &str,
         path: &str,
         commands: &mut Commands,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<GTAMaterial>>,
-        server: &Res<AssetServer>,
     ) -> anyhow::Result<()> {
         let path = get_path(&to_path(path)).ok_or(anyhow!("{} not found!", path))?;
         let dat = std::fs::read_to_string(&path)?;

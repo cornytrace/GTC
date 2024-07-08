@@ -12,7 +12,6 @@ use bevy::{
     render::{
         render_asset::RenderAssetUsages,
         render_resource::{Extent3d, TextureDimension, TextureFormat},
-        texture::TextureFormatPixelInfo,
     },
     utils::BoxedFuture,
 };
@@ -176,7 +175,7 @@ impl AssetLoader for TxdLoader {
                         RasterFormat::Format888 => TextureFormat::Bgra8UnormSrgb,
                         _ => unimplemented!(),
                     };
-                    let mut image = Image::new(
+                    let image = Image::new(
                         Extent3d {
                             width: raster.width.into(),
                             height: raster.height.into(),

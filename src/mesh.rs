@@ -1,19 +1,14 @@
-use std::{collections::HashSet, sync::Mutex};
-
 use bevy::{
     prelude::*,
     render::{
         mesh::PrimitiveTopology,
         render_asset::RenderAssetUsages,
-        texture::{ImageAddressMode, ImageFilterMode, ImageSamplerDescriptor},
+        texture::{ImageAddressMode, ImageSamplerDescriptor},
     },
 };
-use rw_rs::bsf::{
-    tex::{TextureAddressingMode, TextureFilteringMode},
-    Chunk, ChunkContent,
-};
+use rw_rs::bsf::{tex::TextureAddressingMode, Chunk, ChunkContent};
 
-use crate::{assets::Txd, material::GTAMaterial, utils::to_xzy};
+use crate::{material::GTAMaterial, utils::to_xzy};
 
 pub fn load_dff(
     bsf: &Chunk,
@@ -67,7 +62,7 @@ pub fn load_dff(
 
             let tex_coords = geo
                 .tex_coords
-                .get(0)
+                .first()
                 .unwrap_or(&Vec::new())
                 .iter()
                 .map(|t| t.as_arr())
@@ -150,7 +145,7 @@ pub fn load_dff(
                     // Material
                     let mut tex_handle: Option<Handle<Image>> = None;
                     let mut sampler: ImageSamplerDescriptor = Default::default();
-                    if let Some(tex_chunk) = mat_chunk.get_children().get(0) {
+                    if let Some(tex_chunk) = mat_chunk.get_children().first() {
                         if let ChunkContent::Texture(tex) = &tex_chunk.content {
                             if let ChunkContent::String(tex_name) =
                                 &tex_chunk.get_children()[0].content
