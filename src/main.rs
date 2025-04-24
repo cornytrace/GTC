@@ -13,9 +13,9 @@ use assets::{GTAAssetReader, Txd, TxdLoader};
 use bevy::{
     asset::io::{AssetSource, AssetSourceId},
     audio::AudioPlugin,
+    image::{ImageAddressMode, ImageSamplerDescriptor},
     log::LogPlugin,
     prelude::*,
-    render::texture::{ImageAddressMode, ImageSamplerDescriptor},
 };
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
@@ -77,7 +77,7 @@ fn main() -> AppExit {
     .insert_resource(GameData {
         ide: Ide::default(),
     })
-    .observe(spawn_obj);
+    .add_observer(spawn_obj);
 
     app.run()
 }
@@ -93,13 +93,7 @@ fn setup(
         Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
 
     // Camera in 3D space.
-    commands.spawn((
-        Camera3dBundle {
-            transform: camera_and_light_transform,
-            ..default()
-        },
-        FlyCam,
-    ));
+    commands.spawn((camera_and_light_transform, Camera3d { ..default() }, FlyCam));
 
     // Compile-time  switch between loading single object and entire city
     if true {
@@ -111,23 +105,19 @@ fn setup(
         let (_, tl) = Chunk::parse(&tl).unwrap();
         let meshes_vec = load_dff(&tl, "dyntraffic", &asset_server)
             .into_iter()
-            .last()
+            .next_back()
             .unwrap()
             .into_iter()
             .map(|(m, mat)| (meshes.add(m), materials.add(mat)))
             .collect::<Vec<_>>();
 
-        let mut ent = commands.spawn(SpatialBundle {
-            transform: Transform::from_xyz(0.0, 290.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-            ..Default::default()
-        });
+        let mut ent = commands.spawn((
+            Transform::from_xyz(0.0, 290.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+            Visibility::Visible,
+        ));
         ent.with_children(|parent| {
             for (mesh, material) in meshes_vec {
-                parent.spawn((MaterialMeshBundle::<GTAMaterial> {
-                    mesh,
-                    material,
-                    ..default()
-                },));
+                parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
             }
         });
     }

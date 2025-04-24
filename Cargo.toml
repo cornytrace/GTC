@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.72"
 async-fs = "2.1.1"
-bevy-inspector-egui = "0.25.0"
+bevy-inspector-egui = "0.30.0"
 lazy_static = "1.4.0"
 nom-derive = "0.10.1"
 num-traits = "0.2.16"
@@ -16,7 +16,7 @@ rw-rs = { path = "../rw-rs" }
 thiserror = "1.0.48"
 
 [dependencies.bevy]
-version = "0.14.0"
+version = "0.15.0"
 features = ["file_watcher", "embedded_watcher"]
 
 # Enable max optimizations for dependencies, but not for our code:

@@ -45,7 +45,7 @@ pub fn spawn_obj(
     let (_, bsf) = Chunk::parse(&file).unwrap();
     let meshes_vec = load_dff(&bsf, &ide.txd_name, &server)
         .into_iter()
-        .last()
+        .next_back()
         .unwrap_or_default()
         .into_iter()
         .map(|(m, mat)| (meshes.add(m), materials.add(mat)))
@@ -56,21 +56,17 @@ pub fn spawn_obj(
         return;
     }
 
-    let mut ent = commands.spawn(SpatialBundle {
-        transform: Transform {
+    let mut ent = commands.spawn((
+        Transform {
             translation: data.pos.into(),
             scale: data.scale.into(),
             rotation: data.rot,
         },
-        ..Default::default()
-    });
+        Visibility::Visible,
+    ));
     ent.with_children(|parent| {
         for (mesh, material) in meshes_vec {
-            parent.spawn((MaterialMeshBundle::<GTAMaterial> {
-                mesh,
-                material,
-                ..default()
-            },));
+            parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
         }
     });
 }

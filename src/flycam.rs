@@ -1,4 +1,4 @@
-use bevy::ecs::event::ManualEventReader;
+use bevy::ecs::event::EventCursor;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
@@ -6,7 +6,7 @@ use bevy::window::{CursorGrabMode, PrimaryWindow};
 /// Keeps track of mouse motion events, pitch, and yaw
 #[derive(Resource, Default)]
 struct InputState {
-    reader_motion: ManualEventReader<MouseMotion>,
+    reader_motion: EventCursor<MouseMotion>,
 }
 
 /// Mouse sensitivity and movement speed
@@ -62,14 +62,14 @@ pub struct FlyCam;
 
 /// Grabs/ungrabs mouse cursor
 fn toggle_grab_cursor(window: &mut Window) {
-    match window.cursor.grab_mode {
+    match window.cursor_options.grab_mode {
         CursorGrabMode::None => {
-            window.cursor.grab_mode = CursorGrabMode::Confined;
-            window.cursor.visible = false;
+            window.cursor_options.grab_mode = CursorGrabMode::Confined;
+            window.cursor_options.visible = false;
         }
         _ => {
-            window.cursor.grab_mode = CursorGrabMode::None;
-            window.cursor.visible = true;
+            window.cursor_options.grab_mode = CursorGrabMode::None;
+            window.cursor_options.visible = true;
         }
     }
 }
@@ -86,8 +86,8 @@ fn initial_grab_cursor(mut primary_window: Query<&mut Window, With<PrimaryWindow
 /// Spawns the `Camera3dBundle` to be controlled
 fn setup_player(mut commands: Commands) {
     commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_xyz(-2.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(-2.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Camera3d {
             ..Default::default()
         },
         FlyCam,
@@ -111,7 +111,7 @@ fn player_move(
             let right = Vec3::new(local_z.z, 0., -local_z.x);
 
             for key in keys.get_pressed() {
-                match window.cursor.grab_mode {
+                match window.cursor_options.grab_mode {
                     CursorGrabMode::None => (),
                     _ => {
                         let key = *key;
@@ -139,7 +139,7 @@ fn player_move(
 
                 velocity = velocity.normalize_or_zero();
 
-                transform.translation += velocity * time.delta_seconds() * settings.speed * mult;
+                transform.translation += velocity * time.delta_secs() * settings.speed * mult;
             }
         }
     } else {
@@ -159,7 +159,7 @@ fn player_look(
         for mut transform in query.iter_mut() {
             for ev in state.reader_motion.read(&motion) {
                 let (mut yaw, mut pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
-                match window.cursor.grab_mode {
+                match window.cursor_options.grab_mode {
                     CursorGrabMode::None => (),
                     _ => {
                         // Using smallest of height or width ensures equal vertical and horizontal sensitivity

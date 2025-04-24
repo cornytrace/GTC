@@ -1,10 +1,8 @@
 use bevy::{
     asset::embedded_asset,
+    image::ImageSamplerDescriptor,
     prelude::*,
-    render::{
-        render_resource::{AsBindGroup, ShaderRef},
-        texture::ImageSamplerDescriptor,
-    },
+    render::render_resource::{AsBindGroup, ShaderRef},
 };
 
 #[derive(AsBindGroup, Debug, Clone, Asset, TypePath)]
@@ -54,7 +52,7 @@ impl Plugin for GTAMaterialPlugin {
 
         app.add_plugins(MaterialPlugin::<GTAMaterial>::default())
             .insert_resource(AmbientLight {
-                color: Color::rgb_u8(85, 85, 85),
+                color: Color::srgb_u8(85, 85, 85),
                 brightness: 0.0,
             })
             .add_systems(Update, update_ambient);

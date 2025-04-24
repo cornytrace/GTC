@@ -1,10 +1,7 @@
 use bevy::{
+    image::{ImageAddressMode, ImageSamplerDescriptor},
     prelude::*,
-    render::{
-        mesh::PrimitiveTopology,
-        render_asset::RenderAssetUsages,
-        texture::{ImageAddressMode, ImageSamplerDescriptor},
-    },
+    render::{mesh::PrimitiveTopology, render_asset::RenderAssetUsages},
 };
 use rw_rs::bsf::{tex::TextureAddressingMode, Chunk, ChunkContent};
 
