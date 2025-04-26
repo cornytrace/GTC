@@ -32,6 +32,10 @@ impl Material for GTAMaterial {
     fn fragment_shader() -> ShaderRef {
         "embedded://gtc/shaders/gta_material.wgsl".into()
     }
+
+    fn alpha_mode(&self) -> AlphaMode {
+        AlphaMode::AlphaToCoverage
+    }
 }
 
 fn update_ambient(light: Res<AmbientLight>, mut materials: ResMut<Assets<GTAMaterial>>) {
