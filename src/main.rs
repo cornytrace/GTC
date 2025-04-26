@@ -17,7 +17,7 @@ use bevy::{
     log::LogPlugin,
     prelude::*,
 };
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use dat::{GameData, Ide};
 use flycam::*;
@@ -72,7 +72,13 @@ fn main() -> AppExit {
     .register_asset_loader(TxdLoader)
     .init_asset::<Txd>()
     .add_plugins(GTAMaterialPlugin)
-    .add_plugins((NoCameraPlayerPlugin, WorldInspectorPlugin::new()))
+    .add_plugins(NoCameraPlayerPlugin)
+    .add_plugins((
+        EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        },
+        WorldInspectorPlugin::new(),
+    ))
     .add_systems(Startup, setup)
     .insert_resource(GameData {
         ide: Ide::default(),

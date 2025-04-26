@@ -53,7 +53,8 @@ impl Plugin for GTAMaterialPlugin {
         app.add_plugins(MaterialPlugin::<GTAMaterial>::default())
             .insert_resource(AmbientLight {
                 color: Color::srgb_u8(85, 85, 85),
-                brightness: 0.0,
+                brightness: 1.0,
+                ..Default::default()
             })
             .add_systems(Update, update_ambient);
     }
