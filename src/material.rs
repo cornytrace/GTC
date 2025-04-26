@@ -36,6 +36,17 @@ impl Material for GTAMaterial {
     fn alpha_mode(&self) -> AlphaMode {
         AlphaMode::AlphaToCoverage
     }
+
+    fn specialize(
+        pipeline: &bevy::pbr::MaterialPipeline<Self>,
+        descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+        layout: &bevy::render::mesh::MeshVertexBufferLayoutRef,
+        key: bevy::pbr::MaterialPipelineKey<Self>,
+    ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
+        descriptor.primitive.cull_mode = None;
+
+        Ok(())
+    }
 }
 
 fn update_ambient(light: Res<AmbientLight>, mut materials: ResMut<Assets<GTAMaterial>>) {
