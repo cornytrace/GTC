@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use anyhow::anyhow;
 use bevy::prelude::*;
 
 use crate::{
@@ -16,7 +15,7 @@ pub struct GameData {
 }
 
 impl GameData {
-    pub fn load_dat(&mut self, commands: &mut Commands) -> anyhow::Result<()> {
+    pub fn load_dat(&mut self, commands: &mut Commands) -> Result {
         let dat = std::fs::read_to_string(GTA_DIR.join("data/gta3.dat"))?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
         for line in lines {
@@ -39,13 +38,8 @@ impl GameData {
         Ok(())
     }
 
-    pub fn load_def(
-        &mut self,
-        ty: &str,
-        path: &str,
-        commands: &mut Commands,
-    ) -> anyhow::Result<()> {
-        let path = get_path(&to_path(path)).ok_or(anyhow!("{} not found!", path))?;
+    pub fn load_def(&mut self, ty: &str, path: &str, commands: &mut Commands) -> Result {
+        let path = get_path(&to_path(path)).ok_or(format!("{} not found!", path))?;
         let dat = std::fs::read_to_string(&path)?;
         let lines = dat.split('\n').map(|e| e.trim()).collect::<Vec<_>>();
 

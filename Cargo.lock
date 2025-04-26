@@ -2748,7 +2748,6 @@ checksum = "36119f3a540b086b4e436bb2b588cf98a68863470e0e880f4d0842f112a3183a"
 name = "gtc"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-fs",
  "bevy",
  "bevy-inspector-egui",

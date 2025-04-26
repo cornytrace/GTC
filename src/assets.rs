@@ -1,7 +1,6 @@
 use std::{ops::Index, path::Path};
 
 use crate::{utils::get_path, IMG};
-use anyhow::Result;
 use async_fs::File;
 use bevy::{
     asset::{
