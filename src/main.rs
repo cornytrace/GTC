@@ -19,7 +19,7 @@ use bevy::{
 };
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
-use dat::{GameData, Ide};
+use dat::GameData;
 use flycam::*;
 use material::{GTAMaterial, GTAMaterialPlugin};
 use mesh::load_dff;
@@ -80,9 +80,7 @@ fn main() -> AppExit {
         WorldInspectorPlugin::new(),
     ))
     .add_systems(Startup, setup)
-    .insert_resource(GameData {
-        ide: Ide::default(),
-    })
+    .insert_resource(GameData::default())
     .add_observer(spawn_obj);
 
     app.run()
@@ -90,7 +88,7 @@ fn main() -> AppExit {
 
 fn setup(
     mut commands: Commands,
-    mut file_data: ResMut<GameData>,
+    mut game_data: ResMut<GameData>,
     mut materials: ResMut<Assets<GTAMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
@@ -103,7 +101,7 @@ fn setup(
 
     // Compile-time  switch between loading single object and entire city
     if true {
-        file_data
+        game_data
             .load_dat(&mut commands)
             .expect("Error loading gta3.dat");
     } else {
@@ -126,6 +124,82 @@ fn setup(
                 parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
             }
         });
+
+        commands.spawn((
+            Mesh3d(meshes.add(Plane3d::new(Vec3::X, Vec2 { x: 64., y: 64. }))),
+            MeshMaterial3d(materials.add(GTAMaterial {
+                color: LinearRgba {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    alpha: 255.0,
+                },
+                texture: Some(asset_server.load("particle.txd#water_old")),
+                sampler: ImageSamplerDescriptor::default(),
+                ambient_fac: 0.0,
+                diffuse_fac: 1.0,
+                ambient_light: LinearRgba {
+                    red: 0.0,
+                    green: 0.0,
+                    blue: 0.0,
+                    alpha: 1.0,
+                },
+            })),
+        ));
+    }
+
+    const WATER_TILE_SIZE: f32 = 32.0;
+
+    #[derive(Component)]
+    struct WaterParent;
+    let mut water_parent = commands.spawn((
+        Transform::from_xyz(2048.0 - 16.0, 0.0, -(2048.0 - 16.0)),
+        Visibility::Visible,
+        WaterParent,
+    ));
+    match game_data.load_water() {
+        Ok(()) => {
+            for i in 0..128 * 128 {
+                let height = game_data.water_level[i];
+                if height == f32::NEG_INFINITY {
+                    continue;
+                }
+
+                water_parent.with_child((
+                    Mesh3d(meshes.add(Plane3d::new(
+                        Vec3::Y,
+                        Vec2 {
+                            x: WATER_TILE_SIZE / 2.0,
+                            y: WATER_TILE_SIZE / 2.0,
+                        },
+                    ))),
+                    MeshMaterial3d(materials.add(GTAMaterial {
+                        color: LinearRgba {
+                            red: 1.0,
+                            green: 1.0,
+                            blue: 1.0,
+                            alpha: 255.0,
+                        },
+                        texture: Some(asset_server.load("particle.txd#water_old")),
+                        sampler: ImageSamplerDescriptor::default(),
+                        ambient_fac: 0.0,
+                        diffuse_fac: 1.0,
+                        ambient_light: LinearRgba {
+                            red: 0.0,
+                            green: 0.0,
+                            blue: 0.0,
+                            alpha: 1.0,
+                        },
+                    })),
+                    Transform::from_xyz(
+                        -(f32::floor((i as f32) / 128.0) * WATER_TILE_SIZE),
+                        height,
+                        (i % 128) as f32 * WATER_TILE_SIZE,
+                    ),
+                ));
+            }
+        }
+        Err(e) => error!("Error loading water: {e}"),
     }
 
     // ambient light

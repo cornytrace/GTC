@@ -111,6 +111,16 @@ impl AssetLoader for TxdLoader {
         for raster in &bsf.get_children()[1..] {
             if let ChunkContent::Raster(raster) = &raster.content {
                 let mut data: Vec<u8> = Vec::new();
+
+                let raster_format = RasterFormat::from_u32(
+                    raster.raster_format
+                        & !(RasterFormat::FormatExtAutoMipmap as u32)
+                        & !(RasterFormat::FormatExtPal4 as u32)
+                        & !(RasterFormat::FormatExtPal8 as u32)
+                        & !(RasterFormat::FormatExtMipmap as u32),
+                )
+                .unwrap();
+
                 if (raster.raster_format & (RasterFormat::FormatExtPal8 as u32)) != 0 {
                     let (indices, palette) = RpRasterPalette::<256>::parse(&raster.data).unwrap();
                     let indices = &indices[4..];
@@ -118,9 +128,9 @@ impl AssetLoader for TxdLoader {
                         for w in 0..(raster.width as usize) {
                             let index = indices[w + (h * (raster.width as usize))];
                             let color = palette.0[index as usize];
-                            data.push(color.b);
-                            data.push(color.g);
                             data.push(color.r);
+                            data.push(color.g);
+                            data.push(color.b);
                             data.push(color.a);
                         }
                     }
@@ -131,25 +141,38 @@ impl AssetLoader for TxdLoader {
                         for w in 0..(raster.width as usize) {
                             let index = indices[w + (h * (raster.width as usize))];
                             let color = palette.0[index as usize];
-                            data.push(color.b);
-                            data.push(color.g);
                             data.push(color.r);
+                            data.push(color.g);
+                            data.push(color.b);
                             data.push(color.a);
                         }
+                    }
+                } else if matches!(raster_format, RasterFormat::Format1555) {
+                    // TODO: Support DXT
+                    for p in raster.data[4..].chunks_exact(2) {
+                        let p = u16::from_le_bytes([p[0], p[1]]);
+                        let mut a = (p >> 15) as u8;
+                        let r = ((p >> 10) & 0b11111) as u8;
+                        let g = ((p >> 5) & 0b11111) as u8;
+                        let b = (p & 0b11111) as u8;
+
+                        if a != 0 {
+                            a = 255
+                        }
+
+                        data.push(r);
+                        data.push(g);
+                        data.push(b);
+                        data.push(a);
                     }
                 } else {
                     data = raster.data[4..].to_vec();
                 }
 
-                let raster_format = raster.raster_format
-                    & !(RasterFormat::FormatExtAutoMipmap as u32)
-                    & !(RasterFormat::FormatExtPal4 as u32)
-                    & !(RasterFormat::FormatExtPal8 as u32)
-                    & !(RasterFormat::FormatExtMipmap as u32);
-                let raster_format = RasterFormat::from_u32(raster_format).unwrap();
                 let format = match raster_format {
-                    RasterFormat::Format8888 => TextureFormat::Bgra8UnormSrgb,
-                    RasterFormat::Format888 => TextureFormat::Bgra8UnormSrgb,
+                    RasterFormat::Format8888 => TextureFormat::Rgba8UnormSrgb,
+                    RasterFormat::Format888 => TextureFormat::Rgba8UnormSrgb,
+                    RasterFormat::Format1555 => TextureFormat::Rgba8UnormSrgb,
                     _ => unimplemented!(),
                 };
                 let image = Image::new(

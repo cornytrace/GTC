@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 async-fs = "2.1.1"
 bevy-inspector-egui = "0.31.0"
+binrw = "0.14.1"
 lazy_static = "1.4.0"
 nom-derive = "0.10.1"
 num-traits = "0.2.16"

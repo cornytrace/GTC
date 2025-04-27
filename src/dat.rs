@@ -1,6 +1,10 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    io::{Cursor, Seek, SeekFrom},
+};
 
 use bevy::prelude::*;
+use binrw::BinReaderExt;
 
 use crate::{
     objects::SpawnObject,
@@ -12,6 +16,7 @@ use crate::{
 #[derive(Resource)]
 pub struct GameData {
     pub ide: Ide,
+    pub water_level: [f32; 128 * 128],
 }
 
 impl GameData {
@@ -203,6 +208,31 @@ impl GameData {
             }
         }
         Ok(())
+    }
+
+    pub fn load_water(&mut self) -> Result {
+        let mut dat = Cursor::new(std::fs::read(GTA_DIR.join("data/waterpro.dat"))?);
+        let num_levels: u32 = dat.read_le()?;
+        let mut heights: Vec<f32> = Vec::with_capacity(num_levels as usize);
+        for _ in 0..num_levels {
+            heights.push(dat.read_le()?);
+        }
+        dat.seek(SeekFrom::Start(0x13C4))?;
+        for i in 0..128 * 128 {
+            self.water_level[i] = *heights
+                .get(dat.read_le::<u8>()? as usize)
+                .unwrap_or(&f32::NEG_INFINITY);
+        }
+        Ok(())
+    }
+}
+
+impl Default for GameData {
+    fn default() -> Self {
+        Self {
+            ide: Default::default(),
+            water_level: [f32::NEG_INFINITY; 128 * 128],
+        }
     }
 }
 
