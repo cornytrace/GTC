@@ -19,6 +19,7 @@ use bevy::{
 };
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
+use clap::Parser;
 use dat::GameData;
 use flycam::*;
 use material::{GTAMaterial, GTAMaterialPlugin};
@@ -34,7 +35,16 @@ lazy_static! {
         Mutex::new(Img::new(&GTA_DIR.join("models/gta3.img")).expect("gta3.img not found"));
 }
 
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(long)]
+    viewer: bool,
+}
+
 fn main() -> AppExit {
+    let args = Args::parse();
+
     if !GTA_DIR.join("data/gta3.dat").exists() {
         error!(
             "GTA files not found, set working directory or set the GTA_DIR environment variable."
@@ -79,14 +89,19 @@ fn main() -> AppExit {
         },
         WorldInspectorPlugin::new(),
     ))
-    .add_systems(Startup, setup)
     .insert_resource(GameData::default())
     .add_observer(spawn_obj);
+
+    if args.viewer {
+        app.add_systems(Startup, setup_viewer);
+    } else {
+        app.add_systems(Startup, setup_game);
+    }
 
     app.run()
 }
 
-fn setup(
+fn setup_game(
     mut commands: Commands,
     mut game_data: ResMut<GameData>,
     mut materials: ResMut<Assets<GTAMaterial>>,
@@ -99,54 +114,9 @@ fn setup(
     // Camera in 3D space.
     commands.spawn((camera_and_light_transform, Camera3d { ..default() }, FlyCam));
 
-    // Compile-time  switch between loading single object and entire city
-    if true {
-        game_data
-            .load_dat(&mut commands)
-            .expect("Error loading gta3.dat");
-    } else {
-        let tl = IMG.lock().unwrap().get_file("trafficlight1.dff").unwrap();
-        let (_, tl) = Chunk::parse(&tl).unwrap();
-        let meshes_vec = load_dff(&tl, "dyntraffic", &asset_server)
-            .into_iter()
-            .next_back()
-            .unwrap()
-            .into_iter()
-            .map(|(m, mat)| (meshes.add(m), materials.add(mat)))
-            .collect::<Vec<_>>();
-
-        let mut ent = commands.spawn((
-            Transform::from_xyz(0.0, 290.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-            Visibility::Visible,
-        ));
-        ent.with_children(|parent| {
-            for (mesh, material) in meshes_vec {
-                parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
-            }
-        });
-
-        commands.spawn((
-            Mesh3d(meshes.add(Plane3d::new(Vec3::X, Vec2 { x: 64., y: 64. }))),
-            MeshMaterial3d(materials.add(GTAMaterial {
-                color: LinearRgba {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    alpha: 255.0,
-                },
-                texture: Some(asset_server.load("particle.txd#water_old")),
-                sampler: ImageSamplerDescriptor::default(),
-                ambient_fac: 0.0,
-                diffuse_fac: 1.0,
-                ambient_light: LinearRgba {
-                    red: 0.0,
-                    green: 0.0,
-                    blue: 0.0,
-                    alpha: 1.0,
-                },
-            })),
-        ));
-    }
+    game_data
+        .load_dat(&mut commands)
+        .expect("Error loading gta3.dat");
 
     const WATER_TILE_SIZE: f32 = 32.0;
 
@@ -201,24 +171,60 @@ fn setup(
         }
         Err(e) => error!("Error loading water: {e}"),
     }
+}
 
-    // ambient light
-    /*commands.insert_resource(AmbientLight {
-        color: Color::ORANGE_RED,
-        brightness: 0.02,
+fn setup_viewer(
+    mut commands: Commands,
+    mut _game_data: ResMut<GameData>,
+    mut materials: ResMut<Assets<GTAMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    asset_server: Res<AssetServer>,
+) {
+    let camera_and_light_transform =
+        Transform::from_xyz(-10.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
+
+    // Camera in 3D space.
+    commands.spawn((camera_and_light_transform, Camera3d { ..default() }, FlyCam));
+
+    let tl = IMG.lock().unwrap().get_file("trafficlight1.dff").unwrap();
+    let (_, tl) = Chunk::parse(&tl).unwrap();
+    let meshes_vec = load_dff(&tl, "dyntraffic", &asset_server)
+        .into_iter()
+        .next_back()
+        .unwrap()
+        .into_iter()
+        .map(|(m, mat)| (meshes.add(m), materials.add(mat)))
+        .collect::<Vec<_>>();
+
+    let mut ent = commands.spawn((
+        Transform::from_xyz(0.0, 290.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Visibility::Visible,
+    ));
+    ent.with_children(|parent| {
+        for (mesh, material) in meshes_vec {
+            parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
+        }
     });
 
-    // directional 'sun' light
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform {
-            translation: Vec3::new(0.0, 1000.0, 0.0),
-            rotation: Quat::from_rotation_x(-PI / 4.),
-            ..default()
-        },
-        ..default()
-    });*/
+    commands.spawn((
+        Mesh3d(meshes.add(Plane3d::new(Vec3::X, Vec2 { x: 32., y: 32. }))),
+        MeshMaterial3d(materials.add(GTAMaterial {
+            color: LinearRgba {
+                red: 1.0,
+                green: 1.0,
+                blue: 1.0,
+                alpha: 255.0,
+            },
+            texture: Some(asset_server.load("particle.txd#water_old")),
+            sampler: ImageSamplerDescriptor::default(),
+            ambient_fac: 0.0,
+            diffuse_fac: 1.0,
+            ambient_light: LinearRgba {
+                red: 0.0,
+                green: 0.0,
+                blue: 0.0,
+                alpha: 1.0,
+            },
+        })),
+    ));
 }
