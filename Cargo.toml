@@ -14,6 +14,7 @@ nom-derive = "0.10.1"
 num-traits = "0.2.16"
 rw-rs = { path = "../rw-rs" }
 thiserror = "1.0.48"
+clap = { version = "4.5.37", features = ["derive"] }
 
 [dependencies.bevy]
 version = "0.16.0"
