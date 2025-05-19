@@ -7,7 +7,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'gtc'",
+      "name": "Debug GTC",
       "cargo": {
         "args": ["build", "--bin=gtc", "--package=gtc"],
         "filter": {
@@ -16,6 +16,22 @@
         }
       },
       "args": [],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.envrc",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug GTC (Viewer)",
+      "cargo": {
+        "args": ["build", "--bin=gtc", "--package=gtc"],
+        "filter": {
+          "name": "gtc",
+          "kind": "bin"
+        }
+      },
+      "args": ["--viewer"],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.envrc",
       "console": "integratedTerminal"

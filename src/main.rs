@@ -3,6 +3,7 @@ mod dat;
 mod material;
 mod mesh;
 mod objects;
+mod ui;
 mod utils;
 
 mod flycam;
@@ -28,6 +29,7 @@ use objects::spawn_obj;
 use rw_rs::{bsf::*, img::Img};
 
 use lazy_static::lazy_static;
+use ui::GTAUIPlugin;
 use utils::to_xzy;
 lazy_static! {
     static ref GTA_DIR: PathBuf = PathBuf::from(std::env::var("GTA_DIR").unwrap_or(".".into()));
@@ -81,7 +83,7 @@ fn main() -> AppExit {
     )
     .register_asset_loader(TxdLoader)
     .init_asset::<Txd>()
-    .add_plugins(GTAMaterialPlugin)
+    .add_plugins((GTAMaterialPlugin, GTAUIPlugin))
     .add_plugins(NoCameraPlayerPlugin)
     .add_plugins((
         EguiPlugin {
@@ -93,7 +95,8 @@ fn main() -> AppExit {
     .add_observer(spawn_obj);
 
     if args.viewer {
-        app.add_systems(Startup, setup_viewer);
+        app.add_systems(Startup, setup_viewer)
+            .add_systems(PostStartup, ui::test_font);
     } else {
         app.add_systems(Startup, setup_game);
     }

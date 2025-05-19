@@ -1,4 +1,4 @@
-use std::{ops::Index, path::Path};
+use std::{collections::HashMap, ops::Index, path::Path};
 
 use crate::{utils::get_path, IMG};
 use async_fs::File;
@@ -223,4 +223,11 @@ impl Index<usize> for Txd {
 pub enum TxdError {
     #[error("invalid TXD file")]
     InvalidTxd,
+}
+
+#[derive(Asset, Reflect, Clone, Debug)]
+pub struct GTAFont {
+    pub image: Handle<Image>,
+    pub atlas_layout: Handle<TextureAtlasLayout>,
+    pub index_table: HashMap<char, u8>,
 }
