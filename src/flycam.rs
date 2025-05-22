@@ -1,3 +1,4 @@
+use avian3d::prelude::*;
 use bevy::ecs::event::EventCursor;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
@@ -84,18 +85,86 @@ fn initial_grab_cursor(mut primary_window: Query<&mut Window, With<PrimaryWindow
 }
 
 /// Spawns the `Camera3dBundle` to be controlled
-fn setup_player(mut commands: Commands) {
+fn setup_game_camera(mut commands: Commands) {
     commands.spawn((
-        Transform::from_xyz(-2.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-        Camera3d {
-            ..Default::default()
-        },
+        Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Camera3d { ..default() },
+        FlyCam,
+        RigidBody::Dynamic,
+        Collider::sphere(1.0),
+        GravityScale(0.),
+        DebugRender::default().without_collider(),
+        LockedAxes::new()
+            .lock_rotation_x()
+            .lock_rotation_y()
+            .lock_rotation_z(),
+    ));
+}
+
+fn setup_viewer_camera(mut commands: Commands) {
+    commands.spawn((
+        Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Camera3d { ..default() },
         FlyCam,
     ));
 }
 
 /// Handles keyboard input and movement
-fn player_move(
+fn camera_game_move(
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    primary_window: Query<&Window, With<PrimaryWindow>>,
+    settings: Res<MovementSettings>,
+    key_bindings: Res<KeyBindings>,
+    mut query: Query<(&FlyCam, &Transform, &mut LinearVelocity)>, //    mut query: Query<&mut Transform, With<FlyCam>>,
+) {
+    if let Ok(window) = primary_window.single() {
+        for (_camera, transform, mut lin_vel) in query.iter_mut() {
+            let mut velocity = Vec3::ZERO;
+            let local_z = transform.local_z();
+            let forward = -Vec3::new(local_z.x, local_z.y, local_z.z);
+            let right = Vec3::new(local_z.z, 0., -local_z.x);
+
+            **lin_vel = Vec3::ZERO;
+            for key in keys.get_pressed() {
+                match window.cursor_options.grab_mode {
+                    CursorGrabMode::None => (),
+                    _ => {
+                        let key = *key;
+                        if key == key_bindings.move_forward {
+                            velocity += forward;
+                        } else if key == key_bindings.move_backward {
+                            velocity -= forward;
+                        } else if key == key_bindings.move_left {
+                            velocity -= right;
+                        } else if key == key_bindings.move_right {
+                            velocity += right;
+                        } else if key == key_bindings.move_ascend {
+                            velocity += Vec3::Y;
+                        } else if key == key_bindings.move_descend {
+                            velocity -= Vec3::Y;
+                        }
+                    }
+                }
+
+                let mult = if keys.pressed(key_bindings.move_sprint) {
+                    settings.sprint_mult
+                } else {
+                    1.
+                };
+
+                velocity = velocity.normalize_or_zero();
+
+                **lin_vel = velocity * time.delta_secs() * settings.speed * mult * 20.;
+            }
+        }
+    } else {
+        warn!("Primary window not found for `player_move`!");
+    }
+}
+
+/// Handles keyboard input and movement
+fn camera_viewer_move(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     primary_window: Query<&Window, With<PrimaryWindow>>,
@@ -195,47 +264,30 @@ fn cursor_grab(
     }
 }
 
-// Grab cursor when an entity with FlyCam is added
-fn initial_grab_on_flycam_spawn(
-    mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    query_added: Query<Entity, Added<FlyCam>>,
-) {
-    if query_added.is_empty() {
-        return;
-    }
-
-    if let Ok(window) = &mut primary_window.single_mut() {
-        toggle_grab_cursor(window);
-    } else {
-        warn!("Primary window not found for `initial_grab_cursor`!");
-    }
-}
-
 /// Contains everything needed to add first-person fly camera behavior to your game
-pub struct PlayerPlugin;
-impl Plugin for PlayerPlugin {
+pub struct GameCameraPlugin;
+impl Plugin for GameCameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InputState>()
             .init_resource::<MovementSettings>()
             .init_resource::<KeyBindings>()
-            .add_systems(Startup, setup_player)
+            .add_systems(Startup, setup_game_camera)
             .add_systems(Startup, initial_grab_cursor)
-            .add_systems(Update, player_move)
+            .add_systems(Update, camera_game_move)
             .add_systems(Update, player_look)
             .add_systems(Update, cursor_grab);
     }
 }
 
-/// Same as [`PlayerPlugin`] but does not spawn a camera
-pub struct NoCameraPlayerPlugin;
-impl Plugin for NoCameraPlayerPlugin {
+pub struct ViewerCameraPlugin;
+impl Plugin for ViewerCameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InputState>()
             .init_resource::<MovementSettings>()
             .init_resource::<KeyBindings>()
-            //.add_systems(Startup, initial_grab_cursor)
-            .add_systems(Startup, initial_grab_on_flycam_spawn)
-            .add_systems(Update, player_move)
+            .add_systems(Startup, setup_viewer_camera)
+            .add_systems(Startup, initial_grab_cursor)
+            .add_systems(Update, camera_viewer_move)
             .add_systems(Update, player_look)
             .add_systems(Update, cursor_grab);
     }

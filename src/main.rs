@@ -10,6 +10,7 @@ mod flycam;
 use std::{path::PathBuf, sync::Mutex};
 
 use assets::{GTAAssetReader, Txd, TxdLoader};
+use avian3d::prelude::*;
 use bevy::{
     asset::io::{AssetSource, AssetSourceId},
     audio::AudioPlugin,
@@ -82,10 +83,12 @@ fn main() -> AppExit {
     .register_asset_loader(TxdLoader)
     .init_asset::<Txd>()
     .add_plugins(GTAMaterialPlugin)
-    .add_plugins(NoCameraPlayerPlugin)
+    .add_plugins((
+        PhysicsPlugins::default(), /*PhysicsDebugPlugin::default()*/
+    ))
     .add_plugins((
         EguiPlugin {
-            enable_multipass_for_primary_context: true,
+            enable_multipass_for_primary_context: false,
         },
         WorldInspectorPlugin::new(),
     ))
@@ -93,9 +96,11 @@ fn main() -> AppExit {
     .add_observer(spawn_obj);
 
     if args.viewer {
-        app.add_systems(Startup, setup_viewer);
+        app.add_systems(Startup, setup_viewer)
+            .add_plugins(ViewerCameraPlugin);
     } else {
-        app.add_systems(Startup, setup_game);
+        app.add_systems(Startup, setup_game)
+            .add_plugins(GameCameraPlugin);
     }
 
     app.run()
@@ -108,12 +113,6 @@ fn setup_game(
     mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
 ) {
-    let camera_and_light_transform =
-        Transform::from_xyz(0.0, 300.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
-
-    // Camera in 3D space.
-    commands.spawn((camera_and_light_transform, Camera3d { ..default() }, FlyCam));
-
     game_data
         .load_dat(&mut commands)
         .expect("Error loading gta3.dat");
@@ -148,7 +147,7 @@ fn setup_game(
                             red: 1.0,
                             green: 1.0,
                             blue: 1.0,
-                            alpha: 255.0,
+                            alpha: 1.0,
                         },
                         texture: Some(asset_server.load("particle.txd#water_old")),
                         sampler: ImageSamplerDescriptor::default(),
@@ -180,12 +179,6 @@ fn setup_viewer(
     mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
 ) {
-    let camera_and_light_transform =
-        Transform::from_xyz(-10.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y);
-
-    // Camera in 3D space.
-    commands.spawn((camera_and_light_transform, Camera3d { ..default() }, FlyCam));
-
     let tl = IMG.lock().unwrap().get_file("trafficlight1.dff").unwrap();
     let (_, tl) = Chunk::parse(&tl).unwrap();
     let meshes_vec = load_dff(&tl, "dyntraffic", &asset_server)

@@ -15,6 +15,7 @@ num-traits = "0.2.16"
 rw-rs = { path = "../rw-rs" }
 thiserror = "1.0.48"
 clap = { version = "4.5.37", features = ["derive"] }
+avian3d = { version = "0.3.0", features = ["simd"] }
 
 [dependencies.bevy]
 version = "0.16.0"

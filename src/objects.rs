@@ -1,5 +1,6 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use rw_rs::bsf::Chunk;
+use rw_rs::{bsf::Chunk, col::CollV1};
 
 use crate::{dat::GameData, material::GTAMaterial, mesh::load_dff, IMG};
 
@@ -27,6 +28,7 @@ pub fn spawn_obj(
         error!("tried to spawn IPL with invalid IDE id {0}", data.id);
         return;
     };
+    assert!(data.name == ide.model_name);
 
     if ide.draw_distance[0] > 299.0 {
         if !data.name.contains("LOD") {
@@ -69,4 +71,47 @@ pub fn spawn_obj(
             parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
         }
     });
+
+    if let Some(col) = game_data.col.get(&data.name) {
+        spawn_collision(col, ent.id(), commands);
+    }
+}
+
+pub fn spawn_collision(col: &CollV1, parent: Entity, mut commands: Commands) {
+    let mut parent = commands.get_entity(parent).unwrap();
+    parent.insert_if_new(RigidBody::Static);
+
+    for sphere in &col.spheres {
+        parent.with_child((
+            Collider::sphere(sphere.radius),
+            Transform::from_xyz(-sphere.center.x, sphere.center.z, sphere.center.y),
+        ));
+    }
+    for tbox in &col.boxes {
+        parent.with_child((
+            Collider::cuboid(
+                (tbox.max.x - tbox.min.x).abs(),
+                (tbox.max.z - tbox.min.z).abs(),
+                (tbox.max.y - tbox.min.y).abs(),
+            ),
+            Transform::from_xyz(
+                -((tbox.max.x + tbox.min.x) / 2.0),
+                (tbox.max.z + tbox.min.z) / 2.0,
+                (tbox.max.y + tbox.min.y) / 2.0,
+            ),
+        ));
+    }
+    if !&col.vertices.is_empty() {
+        parent.with_child(Collider::trimesh(
+            col.vertices
+                .iter()
+                .map(|v| Vec3 {
+                    x: -v.0[0],
+                    y: v.0[2],
+                    z: v.0[1],
+                })
+                .collect(),
+            col.faces.iter().map(|f| [f.a, f.b, f.c]).collect(),
+        ));
+    }
 }

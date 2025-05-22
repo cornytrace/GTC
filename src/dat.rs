@@ -5,6 +5,8 @@ use std::{
 
 use bevy::prelude::*;
 use binrw::BinReaderExt;
+use nom_derive::nom::multi::many0;
+use rw_rs::col::CollV1;
 
 use crate::{
     objects::SpawnObject,
@@ -16,6 +18,8 @@ use crate::{
 #[derive(Resource)]
 pub struct GameData {
     pub ide: Ide,
+    /// Hashmap of collision files indexed by ModelName
+    pub col: HashMap<String, CollV1>,
     pub water_level: [f32; 128 * 128],
 }
 
@@ -36,7 +40,7 @@ impl GameData {
             match ty.as_str() {
                 "ide" | "mapzone" | "ipl" => self.load_def(ty.as_str(), words[1], commands)?,
                 "splash" => {}
-                "colfile" => {}
+                "colfile" => self.load_colfile(words[2])?,
                 _ => todo!(),
             }
         }
@@ -210,6 +214,18 @@ impl GameData {
         Ok(())
     }
 
+    pub fn load_colfile(&mut self, path: &str) -> Result {
+        let path = get_path(&to_path(path)).ok_or(format!("{} not found!", path))?;
+        let colfile = std::fs::read(path)?;
+        let (_, cols) = many0(CollV1::parse)(&colfile).map_err(|err| err.to_owned())?;
+        for col in cols {
+            let old = self.col.insert(col.model_name.clone(), col);
+            assert!(old.is_none());
+        }
+
+        Ok(())
+    }
+
     pub fn load_water(&mut self) -> Result {
         let mut dat = Cursor::new(std::fs::read(GTA_DIR.join("data/waterpro.dat"))?);
         let num_levels: u32 = dat.read_le()?;
@@ -231,6 +247,7 @@ impl Default for GameData {
     fn default() -> Self {
         Self {
             ide: Default::default(),
+            col: HashMap::new(),
             water_level: [f32::NEG_INFINITY; 128 * 128],
         }
     }
