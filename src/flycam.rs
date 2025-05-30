@@ -76,7 +76,7 @@ fn toggle_grab_cursor(window: &mut Window) {
 }
 
 /// Grabs the cursor when game first starts
-fn initial_grab_cursor(mut primary_window: Query<&mut Window, With<PrimaryWindow>>) {
+fn _initial_grab_cursor(mut primary_window: Query<&mut Window, With<PrimaryWindow>>) {
     if let Ok(mut window) = primary_window.single_mut() {
         toggle_grab_cursor(&mut window);
     } else {
@@ -272,7 +272,7 @@ impl Plugin for GameCameraPlugin {
             .init_resource::<MovementSettings>()
             .init_resource::<KeyBindings>()
             .add_systems(Startup, setup_game_camera)
-            .add_systems(Startup, initial_grab_cursor)
+            //.add_systems(Startup, initial_grab_cursor)
             .add_systems(Update, camera_game_move)
             .add_systems(Update, player_look)
             .add_systems(Update, cursor_grab);
@@ -286,7 +286,7 @@ impl Plugin for ViewerCameraPlugin {
             .init_resource::<MovementSettings>()
             .init_resource::<KeyBindings>()
             .add_systems(Startup, setup_viewer_camera)
-            .add_systems(Startup, initial_grab_cursor)
+            //.add_systems(Startup, initial_grab_cursor)
             .add_systems(Update, camera_viewer_move)
             .add_systems(Update, player_look)
             .add_systems(Update, cursor_grab);
