@@ -3,6 +3,7 @@ mod dat;
 mod material;
 mod mesh;
 mod objects;
+mod scm;
 mod utils;
 
 mod flycam;
@@ -25,10 +26,11 @@ use dat::GameData;
 use flycam::*;
 use material::{GTAMaterial, GTAMaterialPlugin};
 use mesh::load_dff;
-use objects::spawn_obj;
+use objects::{spawn_obj, ObjHandles};
 use rw_rs::{bsf::*, img::Img};
 
 use lazy_static::lazy_static;
+use scm::ScriptEnginePlugin;
 use utils::to_xzy;
 lazy_static! {
     static ref GTA_DIR: PathBuf = PathBuf::from(std::env::var("GTA_DIR").unwrap_or(".".into()));
@@ -93,14 +95,16 @@ fn main() -> AppExit {
         WorldInspectorPlugin::new(),
     ))
     .insert_resource(GameData::default())
-    .add_observer(spawn_obj);
+    .add_observer(spawn_obj)
+    .insert_resource(ObjHandles::default());
 
     if args.viewer {
         app.add_systems(Startup, setup_viewer)
             .add_plugins(ViewerCameraPlugin);
     } else {
         app.add_systems(Startup, setup_game)
-            .add_plugins(GameCameraPlugin);
+            .add_plugins(GameCameraPlugin)
+            .add_plugins(ScriptEnginePlugin);
     }
 
     app.run()
@@ -206,7 +210,7 @@ fn setup_viewer(
                 red: 1.0,
                 green: 1.0,
                 blue: 1.0,
-                alpha: 255.0,
+                alpha: 1.0,
             },
             texture: Some(asset_server.load("particle.txd#water_old")),
             sampler: ImageSamplerDescriptor::default(),

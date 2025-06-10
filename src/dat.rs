@@ -184,6 +184,7 @@ impl GameData {
                         pos,
                         scale,
                         rot,
+                        handle: None,
                     })
                 }
 
@@ -253,7 +254,7 @@ impl Default for GameData {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Ide {
     objs: HashMap<u32, IdeObj>,
 }
@@ -262,8 +263,15 @@ impl Ide {
     pub fn get_by_id(&self, id: u32) -> Option<&IdeObj> {
         self.objs.get(&id)
     }
+
+    pub fn get_by_model_name(&self, name: &str) -> Option<&IdeObj> {
+        self.objs
+            .values()
+            .find(|&obj| obj.model_name.to_lowercase() == name.to_lowercase())
+    }
 }
 
+#[derive(Debug)]
 pub struct IdeObj {
     pub id: u32,
     pub model_name: String,

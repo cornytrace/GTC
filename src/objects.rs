@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use avian3d::prelude::*;
 use bevy::prelude::*;
 use rw_rs::{bsf::Chunk, col::CollV1};
@@ -11,6 +13,7 @@ pub struct SpawnObject {
     pub pos: [f32; 3],
     pub scale: [f32; 3],
     pub rot: Quat,
+    pub handle: Option<Entity>,
 }
 
 pub fn spawn_obj(
@@ -24,11 +27,24 @@ pub fn spawn_obj(
     let data = trigger.event();
     debug!("loading {}", data.name);
 
-    let Some(ide) = game_data.ide.get_by_id(data.id) else {
-        error!("tried to spawn IPL with invalid IDE id {0}", data.id);
+    let ide;
+    if data.id != 0 {
+        ide = game_data
+            .ide
+            .get_by_id(data.id)
+            .expect("ide id should exist");
+    } else if !data.name.is_empty() {
+        ide = game_data
+            .ide
+            .get_by_model_name(&data.name)
+            .expect("ide name should exist");
+    } else {
+        error!(
+            "tried to spawn IPL with invalid IDE id {} and/or name {}",
+            data.id, data.name
+        );
         return;
     };
-    assert!(data.name == ide.model_name);
 
     if ide.draw_distance[0] > 299.0 {
         if !data.name.contains("LOD") {
@@ -58,7 +74,14 @@ pub fn spawn_obj(
         return;
     }
 
-    let mut ent = commands.spawn((
+    let mut ent = {
+        if let Some(e) = trigger.handle {
+            commands.get_entity(e).unwrap()
+        } else {
+            commands.spawn_empty()
+        }
+    };
+    ent.insert((
         Transform {
             translation: data.pos.into(),
             scale: data.scale.into(),
@@ -66,6 +89,7 @@ pub fn spawn_obj(
         },
         Visibility::Visible,
     ));
+
     ent.with_children(|parent| {
         for (mesh, material) in meshes_vec {
             parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
@@ -73,7 +97,7 @@ pub fn spawn_obj(
     });
 
     if let Some(col) = game_data.col.get(&data.name) {
-        spawn_collision(col, ent.id(), commands);
+        //spawn_collision(col, ent.id(), commands);
     }
 }
 
@@ -113,5 +137,40 @@ pub fn spawn_collision(col: &CollV1, parent: Entity, mut commands: Commands) {
                 .collect(),
             col.faces.iter().map(|f| [f.a, f.b, f.c]).collect(),
         ));
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct ObjHandles {
+    map: HashMap<u32, Entity>,
+    free: u32,
+}
+
+impl ObjHandles {
+    pub fn insert(&mut self, entity: Entity) -> u32 {
+        let handle = self.free;
+        let res = self.map.insert(handle, entity);
+        assert!(res.is_none(), "object handle was overwritten!");
+
+        //TODO: uncurse
+        while self.map.contains_key(&self.free) {
+            self.free += 1;
+        }
+
+        handle
+    }
+
+    pub fn get(&self, handle: u32) -> Entity {
+        *self
+            .map
+            .get(&handle)
+            .unwrap_or_else(|| panic!("object handle {handle} is invalid"))
+    }
+
+    pub fn remove(&mut self, handle: u32) {
+        let _ = self.map.remove(&handle);
+        if handle < self.free {
+            self.free = handle;
+        }
     }
 }
