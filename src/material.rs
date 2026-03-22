@@ -47,7 +47,7 @@ impl Material for GTAMaterial {
     }
 }
 
-fn update_ambient(light: Res<AmbientLight>, mut materials: ResMut<Assets<GTAMaterial>>) {
+fn update_ambient(light: Res<GlobalAmbientLight>, mut materials: ResMut<Assets<GTAMaterial>>) {
     if !light.is_changed() {
         return;
     }
@@ -64,7 +64,7 @@ impl Plugin for GTAMaterialPlugin {
         embedded_asset!(app, "shaders/gta_material.wgsl");
 
         app.add_plugins(MaterialPlugin::<GTAMaterial>::default())
-            .insert_resource(AmbientLight {
+            .insert_resource(GlobalAmbientLight {
                 color: Color::srgb_u8(85, 85, 85),
                 brightness: 1.0,
                 ..Default::default()

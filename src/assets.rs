@@ -84,7 +84,7 @@ impl AssetReader for GTAAssetReader {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct TxdLoader;
 
 impl AssetLoader for TxdLoader {

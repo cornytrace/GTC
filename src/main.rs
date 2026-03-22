@@ -13,7 +13,7 @@ use std::{path::PathBuf, sync::Mutex};
 use assets::{GTAAssetReader, Txd, TxdLoader};
 use avian3d::prelude::*;
 use bevy::{
-    asset::io::{AssetSource, AssetSourceId},
+    asset::io::{AssetSourceBuilder, AssetSourceId},
     audio::AudioPlugin,
     image::{ImageAddressMode, ImageSamplerDescriptor},
     log::LogPlugin,
@@ -59,7 +59,7 @@ fn main() -> AppExit {
     let mut app = App::new();
     app.register_asset_source(
         AssetSourceId::default(),
-        AssetSource::build().with_reader(|| Box::new(GTAAssetReader)),
+        AssetSourceBuilder::new(move || Box::new(GTAAssetReader)),
     )
     .add_plugins(
         DefaultPlugins

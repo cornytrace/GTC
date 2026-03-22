@@ -17,7 +17,7 @@ pub struct SpawnObject {
 }
 
 pub fn spawn_obj(
-    trigger: Trigger<SpawnObject>,
+    trigger: On<SpawnObject>,
     game_data: Res<GameData>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<GTAMaterial>>,
