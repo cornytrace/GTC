@@ -43,6 +43,8 @@ lazy_static! {
 struct Args {
     #[arg(long)]
     viewer: bool,
+    #[arg(long)]
+    script: bool,
 }
 
 fn main() -> AppExit {
@@ -103,8 +105,11 @@ fn main() -> AppExit {
             .add_plugins(ViewerCameraPlugin);
     } else {
         app.add_systems(Startup, setup_game)
-            .add_plugins(GameCameraPlugin)
-            .add_plugins(ScriptEnginePlugin);
+            .add_plugins(GameCameraPlugin);
+    }
+
+    if args.script {
+        app.add_plugins(ScriptEnginePlugin);
     }
 
     app.run()
