@@ -6,12 +6,12 @@
     view_transformations::position_world_to_clip,
 }
 
-@group(2) @binding(0) var<uniform> material_color: vec4<f32>;
-@group(2) @binding(1) var material_color_texture: texture_2d<f32>;
-@group(2) @binding(2) var material_color_sampler: sampler;
-@group(2) @binding(3) var<uniform> material_ambient_factor: f32;
-@group(2) @binding(4) var<uniform> material_diffuse_factor: f32;
-@group(2) @binding(5) var<uniform> material_ambient_light: vec4<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> material_color: vec4<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(1) var material_color_texture: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(2) var material_color_sampler: sampler;
+@group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> material_ambient_factor: f32;
+@group(#{MATERIAL_BIND_GROUP}) @binding(4) var<uniform> material_diffuse_factor: f32;
+@group(#{MATERIAL_BIND_GROUP}) @binding(5) var<uniform> material_ambient_light: vec4<f32>;
 
 // Vertex shader largely copied from Bevy 0.12 Mesh.wgsl, except the vertex colors
 

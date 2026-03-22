@@ -5,13 +5,10 @@ use async_fs::File;
 use bevy::{
     asset::{
         io::{AssetReader, AssetReaderError, PathStream, Reader, VecReader},
-        AssetLoader, LoadContext,
+        AssetLoader, LoadContext, RenderAssetUsages,
     },
     prelude::*,
-    render::{
-        render_asset::RenderAssetUsages,
-        render_resource::{Extent3d, TextureDimension, TextureFormat},
-    },
+    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
 use nom_derive::Parse;
 use num_traits::FromPrimitive;
@@ -187,7 +184,11 @@ impl AssetLoader for TxdLoader {
                     RenderAssetUsages::default(),
                 );
                 texture_vec.push(
-                    load_context.labeled_asset_scope(raster.name.to_ascii_lowercase(), |_lc| image),
+                    load_context
+                        .labeled_asset_scope::<_, ()>(raster.name.to_ascii_lowercase(), |_lc| {
+                            Ok(image)
+                        })
+                        .unwrap(),
                 );
             } else if !matches!(raster.content, ChunkContent::Extension) {
                 error!("Unexpected type {:?} found in TXD file", raster.content);

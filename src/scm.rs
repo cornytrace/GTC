@@ -1,6 +1,6 @@
 use binrw::{BinReaderExt, BinWriterExt};
 use std::{
-    ffi::{CStr, CString},
+    ffi::CStr,
     io::{Cursor, Seek},
 };
 

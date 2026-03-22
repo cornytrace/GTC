@@ -1,8 +1,6 @@
 use bevy::{
-    asset::embedded_asset,
-    image::ImageSamplerDescriptor,
-    prelude::*,
-    render::render_resource::{AsBindGroup, ShaderRef},
+    asset::embedded_asset, image::ImageSamplerDescriptor, prelude::*,
+    render::render_resource::AsBindGroup, shader::ShaderRef,
 };
 
 #[derive(AsBindGroup, Debug, Clone, Asset, TypePath)]
@@ -38,9 +36,9 @@ impl Material for GTAMaterial {
     }
 
     fn specialize(
-        _pipeline: &bevy::pbr::MaterialPipeline<Self>,
+        _pipeline: &bevy::pbr::MaterialPipeline,
         descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
-        _layout: &bevy::render::mesh::MeshVertexBufferLayoutRef,
+        _layout: &bevy::mesh::MeshVertexBufferLayoutRef,
         _key: bevy::pbr::MaterialPipelineKey<Self>,
     ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
         descriptor.primitive.cull_mode = None;

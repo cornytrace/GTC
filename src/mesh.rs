@@ -1,7 +1,8 @@
 use bevy::{
+    asset::RenderAssetUsages,
     image::{ImageAddressMode, ImageSamplerDescriptor},
+    mesh::PrimitiveTopology,
     prelude::*,
-    render::{mesh::PrimitiveTopology, render_asset::RenderAssetUsages},
 };
 use rw_rs::bsf::{tex::TextureAddressingMode, Chunk, ChunkContent};
 
@@ -137,7 +138,7 @@ pub fn load_dff(
                         mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, used_prelit);
                     }
 
-                    mesh.insert_indices(bevy::render::mesh::Indices::U16(used_triangles));
+                    mesh.insert_indices(bevy::mesh::Indices::U16(used_triangles));
 
                     // Material
                     let mut tex_handle: Option<Handle<Image>> = None;

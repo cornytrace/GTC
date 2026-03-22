@@ -90,12 +90,7 @@ fn main() -> AppExit {
     .add_plugins((
         PhysicsPlugins::default(), /*PhysicsDebugPlugin::default()*/
     ))
-    .add_plugins((
-        EguiPlugin {
-            enable_multipass_for_primary_context: false,
-        },
-        WorldInspectorPlugin::new(),
-    ))
+    .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()))
     .insert_resource(GameData::default())
     .add_observer(spawn_obj)
     .insert_resource(ObjHandles::default());
