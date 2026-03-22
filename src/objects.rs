@@ -97,7 +97,7 @@ pub fn spawn_obj(
     });
 
     if let Some(col) = game_data.col.get(&data.name) {
-        //spawn_collision(col, ent.id(), commands);
+        spawn_collision(col, ent.id(), commands);
     }
 }
 
