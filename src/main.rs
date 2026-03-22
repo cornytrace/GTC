@@ -32,6 +32,8 @@ use rw_rs::{bsf::*, img::Img};
 use lazy_static::lazy_static;
 use scm::ScriptEnginePlugin;
 use utils::to_xzy;
+
+use crate::material::RwMaterial;
 lazy_static! {
     static ref GTA_DIR: PathBuf = PathBuf::from(std::env::var("GTA_DIR").unwrap_or(".".into()));
     static ref IMG: Mutex<Img<'static>> =
@@ -146,7 +148,7 @@ fn setup_game(
                             y: WATER_TILE_SIZE / 2.0,
                         },
                     ))),
-                    MeshMaterial3d(materials.add(GTAMaterial {
+                    MeshMaterial3d(materials.add(GTAMaterial::new_single(RwMaterial {
                         color: LinearRgba {
                             red: 1.0,
                             green: 1.0,
@@ -157,13 +159,7 @@ fn setup_game(
                         sampler: ImageSamplerDescriptor::default(),
                         ambient_fac: 0.0,
                         diffuse_fac: 1.0,
-                        ambient_light: LinearRgba {
-                            red: 0.0,
-                            green: 0.0,
-                            blue: 0.0,
-                            alpha: 1.0,
-                        },
-                    })),
+                    }))),
                     Transform::from_xyz(
                         -(f32::floor((i as f32) / 128.0) * WATER_TILE_SIZE),
                         height,
@@ -187,9 +183,6 @@ fn setup_viewer(
     let (_, tl) = Chunk::parse(&tl).unwrap();
     let meshes_vec = load_dff(&tl, "dyntraffic", &asset_server)
         .into_iter()
-        .next_back()
-        .unwrap()
-        .into_iter()
         .map(|(m, mat)| (meshes.add(m), materials.add(mat)))
         .collect::<Vec<_>>();
 
@@ -205,7 +198,7 @@ fn setup_viewer(
 
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::new(Vec3::X, Vec2 { x: 32., y: 32. }))),
-        MeshMaterial3d(materials.add(GTAMaterial {
+        MeshMaterial3d(materials.add(GTAMaterial::new_single(RwMaterial {
             color: LinearRgba {
                 red: 1.0,
                 green: 1.0,
@@ -216,12 +209,6 @@ fn setup_viewer(
             sampler: ImageSamplerDescriptor::default(),
             ambient_fac: 0.0,
             diffuse_fac: 1.0,
-            ambient_light: LinearRgba {
-                red: 0.0,
-                green: 0.0,
-                blue: 0.0,
-                alpha: 1.0,
-            },
-        })),
+        }))),
     ));
 }

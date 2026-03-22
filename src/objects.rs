@@ -63,9 +63,6 @@ pub fn spawn_obj(
     let (_, bsf) = Chunk::parse(&file).unwrap();
     let meshes_vec = load_dff(&bsf, &ide.txd_name, &server)
         .into_iter()
-        .next_back()
-        .unwrap_or_default()
-        .into_iter()
         .map(|(m, mat)| (meshes.add(m), materials.add(mat)))
         .collect::<Vec<_>>();
 

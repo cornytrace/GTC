@@ -1,18 +1,24 @@
 use bevy::{
     image::{ImageAddressMode, ImageSamplerDescriptor},
     prelude::*,
-    render::{mesh::PrimitiveTopology, render_asset::RenderAssetUsages},
+    render::{
+        mesh::{Indices, PrimitiveTopology},
+        render_asset::RenderAssetUsages,
+    },
 };
 use rw_rs::bsf::{tex::TextureAddressingMode, Chunk, ChunkContent};
 
-use crate::{material::GTAMaterial, utils::to_xzy};
+use crate::{
+    material::{GTAMaterial, RwMaterial, ATTRIBUTE_MATERIAL_ID},
+    utils::to_xzy,
+};
 
 pub fn load_dff(
     bsf: &Chunk,
     txd_name: &str,
     server: &Res<AssetServer>,
     //images: &ResMut<Assets<Image>>,
-) -> Vec<Vec<(Mesh, GTAMaterial)>> {
+) -> Vec<(Mesh, GTAMaterial)> {
     let mut res = Vec::new();
     for geometry_chunk in &bsf
         .get_children()
@@ -21,7 +27,6 @@ pub fn load_dff(
         .unwrap()
         .get_children()[1..]
     {
-        let mut mesh_mat_vec = Vec::new();
         if let ChunkContent::Geometry(geo) = &geometry_chunk.content {
             let topo = if geo.is_tristrip() {
                 PrimitiveTopology::TriangleStrip
@@ -35,13 +40,31 @@ pub fn load_dff(
                 .map(|t| to_xzy(t.as_arr()))
                 .collect::<Vec<_>>();
 
+            let triangles = geo
+                .triangles
+                .iter()
+                .flat_map(|t| t.as_arr())
+                .collect::<Vec<_>>();
+
+            let material_ids = geo
+                .triangles
+                .iter()
+                .flat_map(|t| {
+                    [
+                        t.material_id as u32,
+                        t.material_id as u32,
+                        t.material_id as u32,
+                    ]
+                })
+                .collect::<Vec<_>>();
+
             let mut normals = geo
                 .normals
                 .iter()
                 .map(|t| Vec3::from(to_xzy(t.as_arr())))
                 .collect::<Vec<_>>();
 
-            /*if normals.is_empty() {
+            if normals.is_empty() {
                 normals = vec![Vec3::ZERO; vertices.len()];
                 for t in &geo.triangles {
                     let v1: Vec3 = vertices[t.vertex1 as usize].into();
@@ -55,7 +78,7 @@ pub fn load_dff(
                     normals[t.vertex3 as usize] += normal;
                 }
                 normals = normals.into_iter().map(|n| n.normalize()).collect();
-            }*/
+            }
 
             let tex_coords = geo
                 .tex_coords
@@ -77,67 +100,11 @@ pub fn load_dff(
                 .find(|c| matches!(c.content, ChunkContent::MaterialList(_)))
                 .expect("geometry needs material list");
             if let ChunkContent::MaterialList(list) = &mat_list.content {
-                // Because Bevy only allows one Material per Mesh, we need to split the mesh
-                for (mat_num, mat_chunk) in mat_list.get_children().iter().enumerate() {
+                let mut mat_vec = Vec::new();
+                for mat_chunk in mat_list.get_children() {
                     let ChunkContent::Material(mat) = mat_chunk.content else {
-                        continue;
+                        panic!("No valid material chunk in material list");
                     };
-
-                    // Mesh
-                    let mut mesh = Mesh::new(topo, RenderAssetUsages::default());
-
-                    let mut used_triangles = geo
-                        .triangles
-                        .iter()
-                        .filter(|t| list.get_index(t.material_id.into()) as usize == mat_num)
-                        .flat_map(|t| t.as_arr())
-                        .collect::<Vec<_>>();
-
-                    let mut used_vertices = vertices.clone();
-                    let mut used_normals = normals.clone();
-                    let mut used_tex_coords = tex_coords.clone();
-                    let mut used_prelit = prelit.clone();
-
-                    {
-                        let mut i = 0;
-                        while i < used_vertices.len() {
-                            if used_triangles.contains(&(i as u16)) {
-                                i += 1;
-                            } else {
-                                used_vertices.remove(i);
-                                if !normals.is_empty() {
-                                    used_normals.remove(i);
-                                }
-                                if !tex_coords.is_empty() {
-                                    used_tex_coords.remove(i);
-                                }
-                                if !prelit.is_empty() {
-                                    used_prelit.remove(i);
-                                }
-                                for triangle in &mut used_triangles {
-                                    if (*triangle as usize) > i {
-                                        *triangle -= 1;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, used_vertices);
-
-                    if !normals.is_empty() {
-                        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, used_normals);
-                    }
-
-                    if geo.tex_coords.len() == 1 {
-                        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, used_tex_coords);
-                    }
-
-                    if !prelit.is_empty() {
-                        mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, used_prelit);
-                    }
-
-                    mesh.insert_indices(bevy::render::mesh::Indices::U16(used_triangles));
 
                     // Material
                     let mut tex_handle: Option<Handle<Image>> = None;
@@ -205,20 +172,57 @@ pub fn load_dff(
                     // TODO: VC and above have the surface properties in the material
                     let surf_prop = geo.surface_prop.unwrap();
 
-                    let mat = GTAMaterial {
+                    let mat = RwMaterial {
                         color: LinearRgba::from_f32_array(mat.color.as_rgba_arr()),
                         texture: tex_handle,
                         sampler,
                         ambient_fac: surf_prop.ambient,
                         diffuse_fac: surf_prop.diffuse,
-                        ambient_light: default(),
                     };
 
-                    mesh_mat_vec.push((mesh, mat))
+                    mat_vec.push(mat);
                 }
+
+                let mat_vec = {
+                    let mut vec = Vec::new();
+                    let mut count = 0;
+                    for mat_id in &list.0 {
+                        if *mat_id == -1 {
+                            vec.push(mat_vec[count].clone());
+                            count += 1;
+                        } else {
+                            vec.push(vec[*mat_id as usize].clone());
+                        }
+                    }
+                    vec
+                };
+
+                let mat = GTAMaterial { mats: mat_vec };
+
+                // Mesh
+                let mut mesh = Mesh::new(topo, RenderAssetUsages::default());
+
+                mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+
+                if !normals.is_empty() {
+                    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+                }
+
+                if geo.tex_coords.len() == 1 {
+                    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, tex_coords);
+                }
+
+                if !prelit.is_empty() {
+                    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, prelit);
+                }
+
+                mesh.insert_attribute(ATTRIBUTE_MATERIAL_ID, material_ids);
+
+                mesh.insert_indices(Indices::U16(triangles));
+
+                res.push((mesh, mat));
             }
         }
-        res.push(mesh_mat_vec);
     }
     res
 }
